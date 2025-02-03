@@ -3,14 +3,12 @@ use image::ImageReader;
 use chrono::DateTime;
 use sqlx;
 
-pub struct Feed{
+pub struct Article {
     pub id: i32,
     pub url: String,
     pub name: String,
-    pub category: String,
-    pub last_fetched: DateTime,
-    pub healthy: bool
+    pub feed: i32, // Foreign
+    pub published: DateTime,
+    pub read: bool,
+    pub description: String
 }
-
-
-
