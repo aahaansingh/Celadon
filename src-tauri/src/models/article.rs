@@ -1,16 +1,6 @@
 use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 
-// pub struct Article {
-//     pub id: i32,
-//     pub url: String,
-//     pub name: String,
-//     pub feed: i32, // Foreign
-//     pub published: DateTime<Utc>,
-//     pub read: bool,
-//     pub description: String
-// }
-
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "Article")]
 pub struct Model {
