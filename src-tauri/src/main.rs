@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod models;
 mod migrations;
+mod tests;
 
 fn main() {
   tauri::Builder::default()

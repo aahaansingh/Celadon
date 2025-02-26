@@ -4,8 +4,8 @@ use sea_orm::entity::prelude::*;
 #[sea_orm(table_name = "Feed")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    id: i32,
-    name: String
+    pub id: i32,
+    pub name: String
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]

@@ -4,9 +4,9 @@ use sea_orm::entity::prelude::*;
 #[sea_orm(table_name = "Tag")]
 pub struct Model {
     #[sea_orm(primary_key)]
-    tag_id: i32,
+    pub tag_id: i32,
     #[sea_orm(primary_key)]
-    article_id: i32
+    pub article_id: i32
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
