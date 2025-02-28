@@ -10,7 +10,8 @@ pub struct Model {
     pub name: String,
     pub published: DateTime<Utc>,
     pub read: bool,
-    pub description: String
+    pub description: String,
+    pub feed: i32
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
@@ -21,7 +22,10 @@ pub enum Relation {
 impl RelationTrait for Relation {
     fn def(&self) -> RelationDef {
         match self {
-            Self::Feed => Entity::belongs_to(super::feed::Entity).into()
+            Self::Feed => Entity::belongs_to(super::feed::Entity)
+                .from(Column::Feed)
+                .to(super::feed::Column::Id)
+                .into()
         }
     }
 }

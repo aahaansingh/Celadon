@@ -58,7 +58,7 @@ mod basic_tests {
             .into_connection();
 
         assert_eq!(
-            folder::Entity::find().one(&db).await?,
+            Folder::find().one(&db).await?,
             Some(folder::Model {
                 id: 1,
                 name: "root".to_owned()
@@ -66,7 +66,7 @@ mod basic_tests {
         );
 
         assert_eq!(
-            feed::Entity::find().all(&db).await?,
+            Feed::find().all(&db).await?,
             [
                 feed::Model {
                     id: 1,
@@ -92,7 +92,7 @@ mod basic_tests {
         );
 
         assert_eq!(
-            folder::Entity::find()
+            Folder::find()
                 .find_also_related(feed::Entity)
                 .all(&db)
                 .await?,
