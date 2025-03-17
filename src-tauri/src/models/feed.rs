@@ -33,7 +33,7 @@ impl RelationTrait for Relation {
     }
 }
 
-impl Related<super::feed::Entity> for Entity {
+impl Related<super::article::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Article.def()
     }
