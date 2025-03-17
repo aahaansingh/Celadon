@@ -1,10 +1,11 @@
 use chrono::Utc;
-pub use sea_orm::{entity::*, error::*, query::*, sea_query, tests_cfg::*, Database, DbConn};
+use sea_orm::{entity::*, error::*, query::*, sea_query, tests_cfg::*, Database, DbConn};
 use super::utils::{self, TestDB};
 use crate::models::*;
 
 #[async_std::test]
 async fn main() -> Result<(), DbErr> {
+    /// Test against in-mem DB to ensure tables are being created and insertions are occurring as expected
     let test_db = TestDB::new("sql_test").await;
     create_tables::create_tables(&test_db.db).await?;
     feed_test(&test_db.db).await?;

@@ -9,6 +9,7 @@ mod basic_tests {
 
     #[async_std::test]
     async fn test_get_feed() -> Result<(), DbErr> {
+        /// Simple test against MockDB to ensure proper insertion/return
         let add = Utc::now();
         let fetch = Utc::now();
         // DB Inserts
