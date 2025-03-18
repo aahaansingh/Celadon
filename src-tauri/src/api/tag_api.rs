@@ -1,9 +1,9 @@
 use crate::models::*;
 use chrono::{DateTime, Utc};
-use tag::ActiveModel;
 use sea_orm::{
     entity::*, error::*, query::*, sea_query, tests_cfg::*, Database, DbConn, DeleteResult,
 };
+use tag::ActiveModel;
 
 pub async fn get_tag(db: &DbConn, id: i32) -> Result<tag::Model, DbErr> {
     let retrieved_tag = Tag::find_by_id(id).one(db).await?;
@@ -65,8 +65,7 @@ pub async fn get_articles(db: &DbConn, id: i32) -> Result<Vec<article::Model>, D
     match related_tag_articles.len() {
         1 => {
             Ok(related_tag_articles[0].1.clone()) // Not sure if I should clone...
-        },
-        _ => Err(DbErr::RecordNotFound("No such tag exists".to_owned()))
+        }
+        _ => Err(DbErr::RecordNotFound("No such tag exists".to_owned())),
     }
-
 }

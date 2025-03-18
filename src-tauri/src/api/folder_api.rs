@@ -2,7 +2,7 @@ use crate::models::*;
 use chrono::{DateTime, Utc};
 use folder::ActiveModel;
 use sea_orm::{
-    entity::*, error::*, query::*, sea_query, tests_cfg::*, Database, DbConn, DeleteResult,
+    entity::*, error::*, query::*, sea_query, tests_cfg::*, Database, DbBackend, DbConn, DeleteResult
 };
 
 pub async fn get_folder(db: &DbConn, id: i32) -> Result<folder::Model, DbErr> {
@@ -48,19 +48,20 @@ pub async fn folder_max_id(db: &DbConn) -> Result<i32, DbErr> {
     let max_vec = Folder::find()
         .select_only()
         .column_as(folder::Column::Id.max(), "max_id")
+        .into_tuple::<Option<i32>>()
         .one(db)
         .await?;
-    match max_vec {
-        None => Ok(0),
-        Some(max) => Ok(max.id),
+    match max_vec.unwrap() {
+        None => {
+            Ok(0)
+        },
+        Some(max) => {
+            Ok(max)
+        },
     }
 }
 
-pub async fn get_feeds(
-    db: &DbConn,
-    id: i32,
-    num: Option<u64>,
-) -> Result<Vec<feed::Model>, DbErr> {
+pub async fn get_feeds(db: &DbConn, id: i32, num: Option<u64>) -> Result<Vec<feed::Model>, DbErr> {
     let selected_folder = get_folder(db, id).await?;
     match num {
         None => {
@@ -70,7 +71,7 @@ pub async fn get_feeds(
                 .all(db)
                 .await?;
             Ok(related_feeds)
-        },
+        }
         Some(lim) => {
             let related_feeds = selected_folder
                 .find_related(Feed)

@@ -142,14 +142,15 @@ pub async fn get_articles(
     }
 }
 
-pub async fn folder_max_id(db: &DbConn) -> Result<i32, DbErr> {
+pub async fn feed_max_id(db: &DbConn) -> Result<i32, DbErr> {
     let max_vec = Feed::find()
         .select_only()
         .column_as(feed::Column::Id.max(), "max_id")
+        .into_tuple::<Option<i32>>()
         .one(db)
         .await?;
-    match max_vec {
+    match max_vec.unwrap() {
         None => Ok(0),
-        Some(max) => Ok(max.id)
+        Some(max) => Ok(max),
     }
 }
