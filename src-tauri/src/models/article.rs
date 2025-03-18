@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
+use sea_orm::sea_query::ForeignKeyAction;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "Article")]
@@ -25,6 +26,7 @@ impl RelationTrait for Relation {
             Self::Feed => Entity::belongs_to(super::feed::Entity)
                 .from(Column::Feed)
                 .to(super::feed::Column::Id)
+                .on_delete(ForeignKeyAction::Cascade)
                 .into()
         }
     }

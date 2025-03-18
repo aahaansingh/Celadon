@@ -1,4 +1,5 @@
 use sea_orm::entity::prelude::*;
+use sea_orm::sea_query::ForeignKeyAction;
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
 #[sea_orm(table_name = "TagArticle")]
@@ -21,10 +22,12 @@ impl RelationTrait for Relation {
             Self::Article => Entity::belongs_to(super::article::Entity)
                 .from(Column::ArticleId)
                 .to(super::article::Column::Id)
+                .on_delete(ForeignKeyAction::Cascade)
                 .into(),
             Self::Tag => Entity::belongs_to(super::tag::Entity)
                 .from(Column::TagId)
                 .to(super::tag::Column::Id)
+                .on_delete(ForeignKeyAction::Cascade)
                 .into()
         }
     }
