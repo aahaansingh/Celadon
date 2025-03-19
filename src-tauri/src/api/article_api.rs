@@ -64,11 +64,12 @@ pub async fn article_max_id(db: &DbConn) -> Result<i32, DbErr> {
     let max_vec = Article::find()
         .select_only()
         .column_as(article::Column::Id.max(), "max_id")
+        .into_tuple::<Option<i32>>()
         .one(db)
         .await?;
-    match max_vec {
+    match max_vec.unwrap() {
         None => Ok(0),
-        Some(max) => Ok(max.id)
+        Some(max) => Ok(max)
     }
 }
 

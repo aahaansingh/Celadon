@@ -3,7 +3,8 @@ use chrono::{DateTime, Utc};
 use sea_orm::{
     entity::*, error::*, query::*, sea_query, tests_cfg::*, Database, DbConn, DeleteResult,
 };
-use tag::ActiveModel;
+use tag::*;
+use tag_article::*;
 
 pub async fn get_tag(db: &DbConn, id: i32) -> Result<tag::Model, DbErr> {
     let retrieved_tag = Tag::find_by_id(id).one(db).await?;
@@ -13,7 +14,7 @@ pub async fn get_tag(db: &DbConn, id: i32) -> Result<tag::Model, DbErr> {
     }
 }
 
-pub async fn create_tag(db: &DbConn, id: i32, name: String) -> InsertResult<ActiveModel> {
+pub async fn create_tag(db: &DbConn, id: i32, name: String) -> InsertResult<tag::ActiveModel> {
     let insert = tag::ActiveModel {
         id: Set(id),
         name: Set(name),
@@ -25,6 +26,28 @@ pub async fn create_tag(db: &DbConn, id: i32, name: String) -> InsertResult<Acti
         .await
         .expect("couldn't insert tag");
     insert_suc
+}
+
+pub async fn tag_article(db: &DbConn, tag_id: i32, article_id: i32) -> InsertResult<tag_article::ActiveModel> {
+    let insert = tag_article::ActiveModel {
+        tag_id: Set(tag_id),
+        article_id: Set(article_id)
+    };
+
+    let insert_suc = TagArticle::insert(insert)
+        .exec(db)
+        .await
+        .expect("couldn't tag this article");
+    insert_suc
+}
+
+pub async fn delete_tag_article(db: &DbConn, tag_id: i32, article_id: i32) -> Result<(), DbErr> {
+    let res: DeleteResult = TagArticle::delete_by_id((tag_id, article_id)).exec(db).await?;
+    if res.rows_affected != 1 {
+        Err(DbErr::RecordNotFound("This tag-article pair does not exist".to_owned()))
+    } else {
+        Ok(())
+    }
 }
 
 pub async fn rename_tag(db: &DbConn, id: i32, name: String) -> Result<(), DbErr> {
@@ -48,11 +71,12 @@ pub async fn tag_max_id(db: &DbConn) -> Result<i32, DbErr> {
     let max_vec = Tag::find()
         .select_only()
         .column_as(tag::Column::Id.max(), "max_id")
+        .into_tuple::<Option<i32>>()
         .one(db)
         .await?;
-    match max_vec {
+    match max_vec.unwrap() {
         None => Ok(0),
-        Some(max) => Ok(max.id),
+        Some(max) => Ok(max),
     }
 }
 
