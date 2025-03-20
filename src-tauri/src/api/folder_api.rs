@@ -2,7 +2,8 @@ use crate::models::*;
 use chrono::{DateTime, Utc};
 use folder::ActiveModel;
 use sea_orm::{
-    entity::*, error::*, query::*, sea_query, tests_cfg::*, Database, DbBackend, DbConn, DeleteResult
+    entity::*, error::*, query::*, sea_query, tests_cfg::*, Database, DbBackend, DbConn,
+    DeleteResult,
 };
 
 pub async fn get_folder(db: &DbConn, id: i32) -> Result<folder::Model, DbErr> {
@@ -52,12 +53,8 @@ pub async fn folder_max_id(db: &DbConn) -> Result<i32, DbErr> {
         .one(db)
         .await?;
     match max_vec.unwrap() {
-        None => {
-            Ok(0)
-        },
-        Some(max) => {
-            Ok(max)
-        },
+        None => Ok(0),
+        Some(max) => Ok(max),
     }
 }
 

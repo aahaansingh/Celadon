@@ -28,10 +28,14 @@ pub async fn create_tag(db: &DbConn, id: i32, name: String) -> InsertResult<tag:
     insert_suc
 }
 
-pub async fn tag_article(db: &DbConn, tag_id: i32, article_id: i32) -> InsertResult<tag_article::ActiveModel> {
+pub async fn tag_article(
+    db: &DbConn,
+    tag_id: i32,
+    article_id: i32,
+) -> InsertResult<tag_article::ActiveModel> {
     let insert = tag_article::ActiveModel {
         tag_id: Set(tag_id),
-        article_id: Set(article_id)
+        article_id: Set(article_id),
     };
 
     let insert_suc = TagArticle::insert(insert)
@@ -42,9 +46,13 @@ pub async fn tag_article(db: &DbConn, tag_id: i32, article_id: i32) -> InsertRes
 }
 
 pub async fn delete_tag_article(db: &DbConn, tag_id: i32, article_id: i32) -> Result<(), DbErr> {
-    let res: DeleteResult = TagArticle::delete_by_id((tag_id, article_id)).exec(db).await?;
+    let res: DeleteResult = TagArticle::delete_by_id((tag_id, article_id))
+        .exec(db)
+        .await?;
     if res.rows_affected != 1 {
-        Err(DbErr::RecordNotFound("This tag-article pair does not exist".to_owned()))
+        Err(DbErr::RecordNotFound(
+            "This tag-article pair does not exist".to_owned(),
+        ))
     } else {
         Ok(())
     }

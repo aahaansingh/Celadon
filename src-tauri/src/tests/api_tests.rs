@@ -137,8 +137,18 @@ async fn article_api_test(db: &DbConn) -> Result<(), DbErr> {
 }
 
 async fn tag_api_test(db: &DbConn) -> Result<(), DbErr> {
-    tag_api::create_tag(db, tag_api::tag_max_id(db).await? + 1, "Cool Stuff".to_owned()).await;
-    tag_api::create_tag(db, tag_api::tag_max_id(db).await? + 1, "For Later".to_owned()).await;
+    tag_api::create_tag(
+        db,
+        tag_api::tag_max_id(db).await? + 1,
+        "Cool Stuff".to_owned(),
+    )
+    .await;
+    tag_api::create_tag(
+        db,
+        tag_api::tag_max_id(db).await? + 1,
+        "For Later".to_owned(),
+    )
+    .await;
     tag_api::tag_article(db, 1, 1).await;
     tag_api::tag_article(db, 2, 1).await;
     tag_api::tag_article(db, 1, 2).await;
@@ -148,7 +158,7 @@ async fn tag_api_test(db: &DbConn) -> Result<(), DbErr> {
 
     let sutro_tags = article_api::get_tags(db, 1).await?;
     assert_eq!(sutro_tags.len(), 2);
-    
+
     tag_api::delete_tag(db, 2).await?;
     let new_sutro_tags = article_api::get_tags(db, 1).await?;
     assert_eq!(new_sutro_tags.len(), 1);
@@ -156,6 +166,6 @@ async fn tag_api_test(db: &DbConn) -> Result<(), DbErr> {
     tag_api::delete_tag_article(db, 1, 1).await?;
     let newest_sutro_tags = article_api::get_tags(db, 1).await?;
     assert_eq!(newest_sutro_tags.len(), 0);
-    
+
     Ok(())
 }

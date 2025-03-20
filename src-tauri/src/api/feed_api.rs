@@ -24,6 +24,22 @@ pub async fn get_feed(db: &DbConn, id: i32) -> Result<feed::Model, DbErr> {
     }
 }
 
+// This function is brought to you by: poor planning to key feeds by their ID rather than URL
+pub async fn get_feed_by_url(db: &DbConn, url: String) -> Result<Option<feed::Model>, DbErr> {
+    let retrieved_feeds = Feed::find()
+        .filter(feed::Column::Url.eq(url))
+        .all(db)
+        .await?;
+    if retrieved_feeds.len() > 1 {
+        return Err(DbErr::Custom("Multiple feeds in database with same URL".to_owned()));
+    }
+    if retrieved_feeds.len() == 0 {
+        Ok(None)
+    } else {
+        Ok(Some(retrieved_feeds[0].clone()))
+    }
+}
+
 pub async fn create_feed(
     db: &DbConn,
     id: i32,
