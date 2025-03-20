@@ -15,6 +15,26 @@ pub async fn get_article(db: &DbConn, id: i32) -> Result<article::Model, DbErr> 
     }
 }
 
+// Again, I should have keyed by URL...
+// Not because feeds can be uniquely identified by URL but because dealing wih linkless articles
+// is beyond the bounds of necessity
+pub async fn get_article_by_url(db: &DbConn, url: String) -> Result<Option<article::Model>, DbErr> {
+    let retrieved_articles = Article::find()
+        .filter(article::Column::Url.eq(url))
+        .all(db)
+        .await?;
+    if retrieved_articles.len() > 1 {
+        return Err(DbErr::Custom(
+            "Multiple articles in database with same URL".to_owned(),
+        ));
+    }
+    if retrieved_articles.len() == 0 {
+        Ok(None)
+    } else {
+        Ok(Some(retrieved_articles[0].clone()))
+    }
+}
+
 pub async fn create_article(
     db: &DbConn,
     id: i32,
@@ -69,7 +89,7 @@ pub async fn article_max_id(db: &DbConn) -> Result<i32, DbErr> {
         .await?;
     match max_vec.unwrap() {
         None => Ok(0),
-        Some(max) => Ok(max)
+        Some(max) => Ok(max),
     }
 }
 
@@ -83,7 +103,7 @@ pub async fn get_tags(db: &DbConn, id: i32) -> Result<Vec<tag::Model>, DbErr> {
     match related_article_tags.len() {
         1 => {
             Ok(related_article_tags[0].1.clone()) // Again, cloning may not be right here
-        },
-        _ => Err(DbErr::RecordNotFound("No such article exists".to_owned()))
+        }
+        _ => Err(DbErr::RecordNotFound("No such article exists".to_owned())),
     }
 }

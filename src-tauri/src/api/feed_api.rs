@@ -31,7 +31,9 @@ pub async fn get_feed_by_url(db: &DbConn, url: String) -> Result<Option<feed::Mo
         .all(db)
         .await?;
     if retrieved_feeds.len() > 1 {
-        return Err(DbErr::Custom("Multiple feeds in database with same URL".to_owned()));
+        return Err(DbErr::Custom(
+            "Multiple feeds in database with same URL".to_owned(),
+        ));
     }
     if retrieved_feeds.len() == 0 {
         Ok(None)

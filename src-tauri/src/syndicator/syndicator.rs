@@ -1,32 +1,30 @@
+use super::{unwrap_date, unwrap_default, RetrievalError};
+use crate::api::*;
+use article_api::get_article_by_url;
+use chrono::{DateTime, Utc};
+use reqwest;
+use rss::validation::Validate;
+use rss::Channel;
+use sea_orm::{
+    entity::*, error::*, query::*, sea_query, tests_cfg::*, Database, DbConn, DeleteResult,
+};
 use std::fs::File;
 use std::io::BufReader;
-use rss::Channel;
-use chrono::{DateTime, Utc};
-use sea_orm::{
-    entity::*, error::*, query::*, sea_query, tests_cfg::*, Database, DbConn,
-    DeleteResult,
-};
-use reqwest;
-use super::{RetrievalError, unwrap_default, unwrap_date};
-use crate::api::*;
 
 pub enum FeedType {
     Rss,
-    Atom
+    Atom,
 }
-
+// TODO make a function to get the feed url from site url
 async fn url_to_feed(db: &DbConn, url: String) -> Result<(), Box<dyn std::error::Error>> {
-    let content = reqwest::get(url.clone())
-        .await?
-        .bytes()
-        .await?;
+    let content = reqwest::get(url.clone()).await?.bytes().await?;
     let channel = Channel::read_from(&content[..])?;
     let matching_feeds = feed_api::get_feed_by_url(db, url).await?;
     match matching_feeds {
         None => {
             let new_feed_res = new_feed(db, channel).await?;
             Ok(new_feed_res)
-        },
+        }
         Some(feed) => {
             let update_feed_res = update_feed(db, feed.id, channel).await?;
             Ok(update_feed_res)
@@ -45,10 +43,11 @@ async fn new_feed(db: &DbConn, channel: Channel) -> Result<(), Box<dyn std::erro
         Utc::now(),
         Utc::now(),
         true,
-        1
-    ).await;
-    
-    // Should be ok to clone, 
+        1,
+    )
+    .await;
+
+    // Should be ok to clone
     for article in channel.items.iter() {
         article_api::create_article(
             db,
@@ -57,13 +56,53 @@ async fn new_feed(db: &DbConn, channel: Channel) -> Result<(), Box<dyn std::erro
             unwrap_default(article.title.clone(), channel.title.clone()),
             unwrap_date(article.pub_date.clone()),
             false,
-            unwrap_default(article.description.clone(), "No description provided.".to_owned()),
-            feed_id
-        ).await;
+            unwrap_default(
+                article.description.clone(),
+                "No description provided.".to_owned(),
+            ),
+            feed_id,
+        )
+        .await;
     }
     Ok(())
 }
 
-async fn update_feed(db: &DbConn, id: i32, channel: Channel) -> Result<(), Box<dyn std::error::Error>> {
+async fn update_feed(
+    db: &DbConn,
+    id: i32,
+    channel: Channel,
+) -> Result<(), Box<dyn std::error::Error>> {
+    feed_api::update_feed_dt(db, id, feed_api::FeedDtFields::LastFetched, Utc::now()).await?;
+    match channel.validate() {
+        Err(e) => {
+            feed_api::update_feed_health(db, id, false).await?;
+            return Ok(());
+        }
+        Ok(_) => {
+            for article in channel.items.iter() {
+                // For now, we are uniquely identifying articles by URL even though for
+                // broken feeds this might not entirely suffice
+                match get_article_by_url(db, channel.link.clone()).await? {
+                    None => {
+                        article_api::create_article(
+                            db,
+                            article_api::article_max_id(db).await? + 1,
+                            unwrap_default(article.link.clone(), channel.link.clone()),
+                            unwrap_default(article.title.clone(), channel.title.clone()),
+                            unwrap_date(article.pub_date.clone()),
+                            false,
+                            unwrap_default(
+                                article.description.clone(),
+                                "No description provided.".to_owned(),
+                            ),
+                            id,
+                        )
+                        .await;
+                    }
+                    Some(_) => {}
+                }
+            }
+        }
+    }
     Ok(())
 }
