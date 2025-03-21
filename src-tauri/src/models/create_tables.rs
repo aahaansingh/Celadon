@@ -8,7 +8,6 @@ where
     let builder = db.get_database_backend();
     let schema = Schema::new(builder);
     let stmt = builder.build(&schema.create_table_from_entity(entity));
-    println!("{}", stmt.sql);
 
     db.execute(stmt).await?;
     Ok(())

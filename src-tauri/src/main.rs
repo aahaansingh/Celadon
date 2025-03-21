@@ -2,7 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod models;
 mod api;
-mod syndicator;
+mod syndication;
 mod tests;
 
 fn main() {

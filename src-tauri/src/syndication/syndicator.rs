@@ -16,13 +16,13 @@ pub enum FeedType {
     Atom,
 }
 // TODO make a function to get the feed url from site url
-async fn url_to_feed(db: &DbConn, url: String) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn url_to_feed(db: &DbConn, url: String, folder: i32) -> Result<(), Box<dyn std::error::Error>> {
     let content = reqwest::get(url.clone()).await?.bytes().await?;
     let channel = Channel::read_from(&content[..])?;
-    let matching_feeds = feed_api::get_feed_by_url(db, url).await?;
+    let matching_feeds = feed_api::get_feed_by_url(db, url.clone()).await?;
     match matching_feeds {
         None => {
-            let new_feed_res = new_feed(db, channel).await?;
+            let new_feed_res = new_feed(db, channel, url, folder).await?;
             Ok(new_feed_res)
         }
         Some(feed) => {
@@ -32,18 +32,18 @@ async fn url_to_feed(db: &DbConn, url: String) -> Result<(), Box<dyn std::error:
     }
 }
 
-async fn new_feed(db: &DbConn, channel: Channel) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn new_feed(db: &DbConn, channel: Channel, url: String, folder: i32) -> Result<(), Box<dyn std::error::Error>> {
     let feed_id = feed_api::feed_max_id(db).await? + 1;
     feed_api::create_feed(
         db,
         feed_id,
-        channel.link.clone(),
+        url,
         channel.title.clone(),
         "".to_owned(), // I didn't realize that a feed could have multiple categories, blank for now
         Utc::now(),
         Utc::now(),
         true,
-        1,
+        folder,
     )
     .await;
 
@@ -67,10 +67,10 @@ async fn new_feed(db: &DbConn, channel: Channel) -> Result<(), Box<dyn std::erro
     Ok(())
 }
 
-async fn update_feed(
+pub async fn update_feed(
     db: &DbConn,
     id: i32,
-    channel: Channel,
+    channel: Channel
 ) -> Result<(), Box<dyn std::error::Error>> {
     feed_api::update_feed_dt(db, id, feed_api::FeedDtFields::LastFetched, Utc::now()).await?;
     match channel.validate() {

@@ -36,12 +36,16 @@ pub async fn rename_folder(db: &DbConn, id: i32, name: String) -> Result<(), DbE
     Ok(())
 }
 
-pub async fn delete_folder(db: &DbConn, id: i32) -> Result<(), DbErr> {
+pub async fn delete_folder(db: &DbConn, id: i32) -> Result<Option<()>, DbErr> {
+    if id == 1 {
+        // You can't delete the main folder
+        return Ok(None);
+    }
     let res: DeleteResult = Folder::delete_by_id(id).exec(db).await?;
     if res.rows_affected != 1 {
         Err(DbErr::RecordNotFound("No such folder exists".to_owned()))
     } else {
-        Ok(())
+        Ok(Some(()))
     }
 }
 
