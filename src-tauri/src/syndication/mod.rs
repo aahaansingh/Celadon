@@ -1,5 +1,6 @@
-use std::fmt;
 use chrono::{DateTime, Utc};
+use std::fmt;
+use std::error;
 
 pub mod syndicator;
 
@@ -12,10 +13,12 @@ impl fmt::Display for RetrievalError {
     }
 }
 
+impl error::Error for RetrievalError {}
+
 pub fn unwrap_default<T>(opt: Option<T>, default: T) -> T {
     match opt {
         None => default,
-        Some(val) => val
+        Some(val) => val,
     }
 }
 
@@ -26,9 +29,7 @@ pub fn unwrap_date(opt: Option<String>) -> DateTime<Utc> {
             let parse_result = DateTime::parse_from_rfc2822(&timestamp);
             match parse_result {
                 Err(e) => Utc::now(),
-                Ok(dt) => {
-                    dt.to_utc()
-                }
+                Ok(dt) => dt.to_utc(),
             }
         }
     }
