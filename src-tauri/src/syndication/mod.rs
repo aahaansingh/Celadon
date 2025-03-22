@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
-use std::fmt;
 use std::error;
+use std::fmt;
 
 pub mod syndicator;
 

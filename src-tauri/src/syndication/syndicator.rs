@@ -109,11 +109,7 @@ pub async fn new_feed(
                     article_api::article_max_id(db).await? + 1,
                     article.id.clone(), // I DONT THINK THIS IS THE LINK???
                     article.title.value.clone(),
-                    unwrap_default(
-                        article.published,
-                        Utc::now().into(),
-                    )
-                    .to_utc(),
+                    unwrap_default(article.published, Utc::now().into()).to_utc(),
                     false,
                     unwrap_atom_content(
                         article.content.clone(),
@@ -167,7 +163,7 @@ pub async fn update_feed(
                     }
                 }
             }
-        },
+        }
         FeedType::Atom(feed) => {
             for article in feed.entries.iter() {
                 match get_article_by_url(db, article.id.clone()).await? {
@@ -177,11 +173,7 @@ pub async fn update_feed(
                             article_api::article_max_id(db).await? + 1,
                             article.id.clone(), // I DONT THINK THIS IS THE LINK???
                             article.title.value.clone(),
-                            unwrap_default(
-                                article.published,
-                                Utc::now().into(),
-                            )
-                            .to_utc(),
+                            unwrap_default(article.published, Utc::now().into()).to_utc(),
                             false,
                             unwrap_atom_content(
                                 article.content.clone(),
@@ -190,7 +182,7 @@ pub async fn update_feed(
                             id,
                         )
                         .await;
-                    },
+                    }
                     Some(_) => {}
                 }
             }

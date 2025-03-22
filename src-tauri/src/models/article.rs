@@ -12,12 +12,12 @@ pub struct Model {
     pub published: DateTime<Utc>,
     pub read: bool,
     pub description: String,
-    pub feed: i32
+    pub feed: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
 pub enum Relation {
-    Feed
+    Feed,
 }
 
 impl RelationTrait for Relation {
@@ -27,7 +27,7 @@ impl RelationTrait for Relation {
                 .from(Column::Feed)
                 .to(super::feed::Column::Id)
                 .on_delete(ForeignKeyAction::Cascade)
-                .into()
+                .into(),
         }
     }
 }
@@ -49,4 +49,3 @@ impl Related<super::tag::Entity> for Entity {
 }
 
 impl ActiveModelBehavior for ActiveModel {}
-

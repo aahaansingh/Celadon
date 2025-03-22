@@ -1,9 +1,10 @@
-use sea_orm::{error::*, ConnectionTrait, DatabaseConnection, DbConn, EntityTrait, ExecResult, Schema};
+use sea_orm::{
+    error::*, ConnectionTrait, DatabaseConnection, DbConn, EntityTrait, ExecResult, Schema,
+};
 
-
-async fn create_table<E>(db: &DbConn, entity: E)-> Result<(), DbErr> 
-where 
-    E : EntityTrait,
+async fn create_table<E>(db: &DbConn, entity: E) -> Result<(), DbErr>
+where
+    E: EntityTrait,
 {
     let builder = db.get_database_backend();
     let schema = Schema::new(builder);

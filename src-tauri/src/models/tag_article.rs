@@ -7,7 +7,7 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub tag_id: i32,
     #[sea_orm(primary_key)]
-    pub article_id: i32
+    pub article_id: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
@@ -28,7 +28,7 @@ impl RelationTrait for Relation {
                 .from(Column::TagId)
                 .to(super::tag::Column::Id)
                 .on_delete(ForeignKeyAction::Cascade)
-                .into()
+                .into(),
         }
     }
 }

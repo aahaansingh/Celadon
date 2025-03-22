@@ -13,7 +13,7 @@ pub struct Model {
     pub added: DateTime<Utc>,
     pub last_fetched: DateTime<Utc>,
     pub healthy: bool,
-    pub folder: i32
+    pub folder: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]
@@ -30,7 +30,7 @@ impl RelationTrait for Relation {
                 .from(Column::Folder)
                 .to(super::folder::Column::Id)
                 .on_delete(ForeignKeyAction::Cascade)
-                .into()
+                .into(),
         }
     }
 }

@@ -16,10 +16,8 @@ impl TestDB {
         Self {
             url,
             db_name: db_name.to_string(),
-            db
+            db,
         }
     }
-    pub async fn delete(&self) {
-        
-    }
+    pub async fn delete(&self) {}
 }
