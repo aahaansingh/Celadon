@@ -23,5 +23,14 @@ async fn syndicator_test_simple(db: &DbConn) -> Result<(), Box<dyn std::error::E
     println!("{}", inserted_model.url);
     let retrieved_feed = feed_api::get_feed_by_url(db, "https://feeds.kottke.org/main".to_owned()).await?.unwrap();
     assert_eq!(retrieved_feed.id, 1);
+
+    let retrieved_articles = feed_api::get_articles(db,1, None).await?;
+    syndicator::url_to_feed(db, "https://feeds.kottke.org/main".to_owned(), main_folder_id).await?;
+    let newly_retrieved_articles = feed_api::get_articles(db,1, None).await?;
+
+    let max_feed_id = feed_api::feed_max_id(db).await?;
+    assert_eq!(max_feed_id, 1);
+    assert_eq!(retrieved_articles.len(), newly_retrieved_articles.len());
+    assert!(retrieved_articles.len() > 0);
     Ok(())
 }
