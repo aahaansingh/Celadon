@@ -36,3 +36,7 @@ atom_syndication = "0.12.7"
 # DO NOT REMOVE!!
 custom-protocol = [ "tauri/custom-protocol" ]
 
+[workspace]
+members = [
+    "."
+]

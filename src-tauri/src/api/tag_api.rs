@@ -14,6 +14,10 @@ pub async fn get_tag(db: &DbConn, id: i32) -> Result<tag::Model, DbErr> {
     }
 }
 
+pub async fn get_all_tags(db: &DbConn) -> Result<Vec<tag::Model>, DbErr> {
+    Tag::find().all(db).await
+}
+
 pub async fn create_tag(db: &DbConn, id: i32, name: String) -> InsertResult<tag::ActiveModel> {
     let insert = tag::ActiveModel {
         id: Set(id),

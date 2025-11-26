@@ -1,8 +1,9 @@
 use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::ForeignKeyAction;
+use serde::Serialize;
 
-#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel)]
+#[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize)]
 #[sea_orm(table_name = "Feed")]
 pub struct Model {
     #[sea_orm(primary_key)]

@@ -8,7 +8,9 @@ where
 {
     let builder = db.get_database_backend();
     let schema = Schema::new(builder);
-    let stmt = builder.build(&schema.create_table_from_entity(entity));
+    let mut table_create_statement = schema.create_table_from_entity(entity);
+    table_create_statement.if_not_exists();
+    let stmt = builder.build(&table_create_statement);
 
     db.execute(stmt).await?;
     Ok(())

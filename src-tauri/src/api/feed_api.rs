@@ -24,6 +24,10 @@ pub async fn get_feed(db: &DbConn, id: i32) -> Result<feed::Model, DbErr> {
     }
 }
 
+pub async fn get_all_feeds(db: &DbConn) -> Result<Vec<feed::Model>, DbErr> {
+    Feed::find().all(db).await
+}
+
 // This function is brought to you by: poor planning to key feeds by their ID rather than URL
 pub async fn get_feed_by_url(db: &DbConn, url: String) -> Result<Option<feed::Model>, DbErr> {
     let retrieved_feeds = Feed::find()

@@ -18,7 +18,7 @@ pub enum FeedType {
 }
 
 // Using the rust-syndication wrapper's method here...
-pub async fn url_to_obj(db: &DbConn, url: &String) -> Result<FeedType, Box<dyn std::error::Error>> {
+pub async fn url_to_obj(url: &String) -> Result<FeedType, Box<dyn std::error::Error>> {
     let content = reqwest::get(url).await?.bytes().await?;
     match atom_syndication::Feed::read_from(&content[..]) {
         Ok(obj) => Ok(FeedType::Atom(obj)),
@@ -35,7 +35,7 @@ pub async fn url_to_feed(
     url: String,
     folder: i32,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let feed_obj = url_to_obj(db, &url).await?;
+    let feed_obj = url_to_obj(&url).await?;
     let matching_feeds = feed_api::get_feed_by_url(db, url.clone()).await?;
     match matching_feeds {
         None => {

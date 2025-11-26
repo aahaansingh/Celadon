@@ -14,6 +14,10 @@ pub async fn get_folder(db: &DbConn, id: i32) -> Result<folder::Model, DbErr> {
     }
 }
 
+pub async fn get_all_feeds(db: &DbConn) -> Result<Vec<folder::Model>, DbErr> {
+    Folder::find().all(db).await
+}
+
 pub async fn create_folder(db: &DbConn, id: i32, name: String) -> InsertResult<ActiveModel> {
     let insert = folder::ActiveModel {
         id: Set(id),
