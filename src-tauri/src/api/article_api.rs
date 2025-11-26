@@ -71,10 +71,10 @@ pub async fn read_article(db: &DbConn, id: i32) -> Result<(), DbErr> {
     Ok(())
 }
 
-pub async fn read_all(db: &DbConn, folder_id: i32) -> Result<(), DbErr> {
+pub async fn read_all(db: &DbConn, feed_id: i32) -> Result<(), DbErr> {
     let _update_result = Article::update_many()
         .col_expr(article::Column::Read, Expr::value(true))
-        .filter(article::Column::Feed.eq(folder_id))
+        .filter(article::Column::Feed.eq(feed_id))
         .exec(db)
         .await?;
     Ok(())

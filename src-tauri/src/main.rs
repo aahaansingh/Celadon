@@ -44,6 +44,28 @@ fn main() {
             commands::feed::update_feed_folder,
             commands::feed::delete_feed,
             commands::feed::get_articles,
+            // folder commands
+            commands::folder::get_folder,
+            commands::folder::get_all_folders,
+            commands::folder::create_folder,
+            commands::folder::rename_folder,
+            commands::folder::delete_folder,
+            commands::folder::get_folder_feeds,
+            // article commands
+            commands::article::get_article,
+            commands::article::get_article_by_url,
+            commands::article::read_article,
+            commands::article::read_all_articles_in_feed,
+            commands::article::get_article_tags,
+            // tag commands
+            commands::tag::get_tag,
+            commands::tag::get_all_tags,
+            commands::tag::create_tag,
+            commands::tag::rename_tag,
+            commands::tag::delete_tag,
+            commands::tag::tag_article,
+            commands::tag::untag_article,
+            commands::tag::get_tagged_articles,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
