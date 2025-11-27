@@ -18,35 +18,27 @@ pub async fn get_all_tags(db: &DbConn) -> Result<Vec<tag::Model>, DbErr> {
     Tag::find().all(db).await
 }
 
-pub async fn create_tag(db: &DbConn, id: i32, name: String) -> InsertResult<tag::ActiveModel> {
+pub async fn create_tag(db: &DbConn, id: i32, name: String) -> Result<InsertResult<tag::ActiveModel>, DbErr> {
     let insert = tag::ActiveModel {
         id: Set(id),
         name: Set(name),
         ..Default::default()
     };
 
-    let insert_suc = Tag::insert(insert)
-        .exec(db)
-        .await
-        .expect("couldn't insert tag");
-    insert_suc
+    Tag::insert(insert).exec(db).await
 }
 
 pub async fn tag_article(
     db: &DbConn,
     tag_id: i32,
     article_id: i32,
-) -> InsertResult<tag_article::ActiveModel> {
+) -> Result<InsertResult<tag_article::ActiveModel>, DbErr> {
     let insert = tag_article::ActiveModel {
         tag_id: Set(tag_id),
         article_id: Set(article_id),
     };
 
-    let insert_suc = TagArticle::insert(insert)
-        .exec(db)
-        .await
-        .expect("couldn't tag this article");
-    insert_suc
+    TagArticle::insert(insert).exec(db).await
 }
 
 pub async fn delete_tag_article(db: &DbConn, tag_id: i32, article_id: i32) -> Result<(), DbErr> {

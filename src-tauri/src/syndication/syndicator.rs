@@ -69,7 +69,7 @@ pub async fn new_feed(
                 true,
                 folder,
             )
-            .await;
+            .await?;
 
             // Should be ok to clone
             for article in channel.items.iter() {
@@ -86,7 +86,7 @@ pub async fn new_feed(
                     ),
                     feed_id,
                 )
-                .await;
+                .await?;
             }
         }
         FeedType::Atom(feed) => {
@@ -101,13 +101,17 @@ pub async fn new_feed(
                 true,
                 folder,
             )
-            .await;
+            .await?;
 
             for article in feed.entries.iter() {
                 article_api::create_article(
                     db,
                     article_api::article_max_id(db).await? + 1,
-                    article.id.clone(), // I DONT THINK THIS IS THE LINK???
+                    article
+                        .links
+                        .get(0)
+                        .map(|l| l.href.clone())
+                        .unwrap_or_default(), // Should be a better url
                     article.title.value.clone(),
                     unwrap_default(article.published, Utc::now().into()).to_utc(),
                     false,
@@ -117,7 +121,7 @@ pub async fn new_feed(
                     ),
                     feed_id,
                 )
-                .await;
+                .await?;
             }
         }
     }
@@ -139,14 +143,16 @@ pub async fn update_feed(
                 }
                 Ok(_) => {
                     for article in channel.items.iter() {
+                        let article_url =
+                            unwrap_default(article.link.clone(), channel.link.clone());
                         // For now, we are uniquely identifying articles by URL even though for
                         // broken feeds this might not entirely suffice
-                        match get_article_by_url(db, channel.link.clone()).await? {
+                        match get_article_by_url(db, article_url.clone()).await? {
                             None => {
                                 article_api::create_article(
                                     db,
                                     article_api::article_max_id(db).await? + 1,
-                                    unwrap_default(article.link.clone(), channel.link.clone()),
+                                    article_url,
                                     unwrap_default(article.title.clone(), channel.title.clone()),
                                     unwrap_date(article.pub_date.clone()),
                                     false,
@@ -156,7 +162,7 @@ pub async fn update_feed(
                                     ),
                                     id,
                                 )
-                                .await;
+                                .await?;
                             }
                             Some(_) => {}
                         }
@@ -166,12 +172,17 @@ pub async fn update_feed(
         }
         FeedType::Atom(feed) => {
             for article in feed.entries.iter() {
-                match get_article_by_url(db, article.id.clone()).await? {
+                let article_url = article
+                    .links
+                    .get(0)
+                    .map(|l| l.href.clone())
+                    .unwrap_or_default();
+                match get_article_by_url(db, article_url.clone()).await? {
                     None => {
                         article_api::create_article(
                             db,
                             article_api::article_max_id(db).await? + 1,
-                            article.id.clone(), // I DONT THINK THIS IS THE LINK???
+                            article_url,
                             article.title.value.clone(),
                             unwrap_default(article.published, Utc::now().into()).to_utc(),
                             false,
@@ -181,7 +192,7 @@ pub async fn update_feed(
                             ),
                             id,
                         )
-                        .await;
+                        .await?;
                     }
                     Some(_) => {}
                 }

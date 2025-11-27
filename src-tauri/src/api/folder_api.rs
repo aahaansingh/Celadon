@@ -18,18 +18,14 @@ pub async fn get_all_feeds(db: &DbConn) -> Result<Vec<folder::Model>, DbErr> {
     Folder::find().all(db).await
 }
 
-pub async fn create_folder(db: &DbConn, id: i32, name: String) -> InsertResult<ActiveModel> {
+pub async fn create_folder(db: &DbConn, id: i32, name: String) -> Result<InsertResult<ActiveModel>, DbErr> {
     let insert = folder::ActiveModel {
         id: Set(id),
         name: Set(name),
         ..Default::default()
     };
 
-    let insert_suc = Folder::insert(insert)
-        .exec(db)
-        .await
-        .expect("couldn't insert folder");
-    insert_suc
+    Folder::insert(insert).exec(db).await
 }
 
 pub async fn rename_folder(db: &DbConn, id: i32, name: String) -> Result<(), DbErr> {
@@ -40,16 +36,16 @@ pub async fn rename_folder(db: &DbConn, id: i32, name: String) -> Result<(), DbE
     Ok(())
 }
 
-pub async fn delete_folder(db: &DbConn, id: i32) -> Result<Option<()>, DbErr> {
+pub async fn delete_folder(db: &DbConn, id: i32) -> Result<(), DbErr> {
     if id == 1 {
         // You can't delete the main folder
-        return Ok(None);
+        return Err(DbErr::Custom("Cannot delete default folder.".to_owned()));
     }
     let res: DeleteResult = Folder::delete_by_id(id).exec(db).await?;
     if res.rows_affected != 1 {
         Err(DbErr::RecordNotFound("No such folder exists".to_owned()))
     } else {
-        Ok(Some(()))
+        Ok(())
     }
 }
 

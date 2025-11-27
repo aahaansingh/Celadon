@@ -56,7 +56,7 @@ pub async fn create_feed(
     last_fetched: DateTime<Utc>,
     healthy: bool,
     folder: i32,
-) -> InsertResult<ActiveModel> {
+) -> Result<InsertResult<ActiveModel>, DbErr> {
     let insert = feed::ActiveModel {
         id: Set(id),
         url: Set(url.to_owned()),
@@ -69,11 +69,7 @@ pub async fn create_feed(
         ..Default::default()
     };
 
-    let insert_suc = Feed::insert(insert)
-        .exec(db)
-        .await
-        .expect("couldn't insert feed");
-    insert_suc
+    Feed::insert(insert).exec(db).await
 }
 
 // Setters

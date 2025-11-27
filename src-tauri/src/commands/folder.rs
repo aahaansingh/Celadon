@@ -57,8 +57,7 @@ pub async fn delete_folder(state: State<'_, DatabaseConnection>, id: i32) -> Res
     let db = state.inner();
     folder_api::delete_folder(db, id)
         .await
-        .map_err(|e| e.to_string())?;
-    Ok(())
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

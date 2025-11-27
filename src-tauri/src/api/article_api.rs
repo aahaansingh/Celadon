@@ -44,7 +44,7 @@ pub async fn create_article(
     read: bool,
     description: String,
     feed: i32,
-) -> InsertResult<ActiveModel> {
+) -> Result<InsertResult<ActiveModel>, DbErr> {
     let insert = article::ActiveModel {
         id: Set(id),
         url: Set(url),
@@ -56,11 +56,7 @@ pub async fn create_article(
         ..Default::default()
     };
 
-    let insert_suc = Article::insert(insert)
-        .exec(db)
-        .await
-        .expect("couldn't insert article");
-    insert_suc
+    Article::insert(insert).exec(db).await
 }
 
 pub async fn read_article(db: &DbConn, id: i32) -> Result<(), DbErr> {

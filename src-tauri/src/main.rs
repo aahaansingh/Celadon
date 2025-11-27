@@ -66,6 +66,8 @@ fn main() {
             commands::tag::tag_article,
             commands::tag::untag_article,
             commands::tag::get_tagged_articles,
+            // syndication commands
+            commands::syndication::add_feed,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

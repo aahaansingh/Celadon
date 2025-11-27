@@ -3,7 +3,7 @@ use crate::api::*;
 use crate::models::create_tables;
 use chrono::Utc;
 use feed_api::FeedStrFields;
-use sea_orm::{entity::*, error::*, query::*, sea_query, tests_cfg::*, Database, DbConn};
+use sea_orm::{DbConn, DbErr};
 
 #[async_std::test]
 async fn main() -> Result<(), DbErr> {
@@ -91,6 +91,22 @@ async fn folder_api_test(db: &DbConn) -> Result<(), DbErr> {
     let second_feeds = folder_api::get_feeds(db, second_folder_id, None).await?;
     assert_eq!(second_folder_id, 2);
     assert_eq!(second_feeds.len(), 1);
+
+    let all_folders = folder_api::get_all_feeds(db).await?;
+    assert_eq!(all_folders.len(), 2);
+
+    folder_api::rename_folder(db, second_folder_id, "renamedfolder".to_owned()).await?;
+    let renamed_folder = folder_api::get_folder(db, second_folder_id).await?;
+    assert_eq!(renamed_folder.name, "renamedfolder");
+
+    // Deleting folder 1 (default) should fail
+    let res = folder_api::delete_folder(db, 1).await;
+    assert!(res.is_err());
+
+    folder_api::delete_folder(db, second_folder_id).await?;
+    let res = folder_api::get_folder(db, second_folder_id).await;
+    assert!(matches!(res, Err(DbErr::RecordNotFound(_))));
+
     Ok(())
 }
 
@@ -133,10 +149,38 @@ async fn article_api_test(db: &DbConn) -> Result<(), DbErr> {
     let new_related_articles = feed_api::get_articles(db, 1, None).await?;
     assert_eq!(new_related_articles.len(), 2);
     assert_eq!(new_related_articles[0].name, "Don't Be A Sucker".to_owned());
+
+    let article1 = article_api::get_article(db, 1).await?;
+    assert_eq!(article1.name, "The Sutro Tower in 3D".to_owned());
+    assert_eq!(article1.read, false);
+
+    let article1_by_url = article_api::get_article_by_url(
+        db,
+        "https://kottke.org/25/02/the-sutro-tower-in-3d".to_owned(),
+    )
+    .await?;
+    assert_eq!(article1_by_url.unwrap().id, 1);
+
+    let no_article = article_api::get_article_by_url(db, "fake_url".to_owned()).await?;
+    assert!(no_article.is_none());
+
+    article_api::read_article(db, 1).await?;
+    let article1_read = article_api::get_article(db, 1).await?;
+    assert_eq!(article1_read.read, true);
+
+    let article2 = article_api::get_article(db, 2).await?;
+    assert_eq!(article2.read, false);
+    article_api::read_all(db, 1).await?;
+    let article2_read = article_api::get_article(db, 2).await?;
+    assert_eq!(article2_read.read, true);
+
     Ok(())
 }
 
 async fn tag_api_test(db: &DbConn) -> Result<(), DbErr> {
+    let all_tags = tag_api::get_all_tags(db).await?;
+    assert_eq!(all_tags.len(), 0);
+
     tag_api::create_tag(
         db,
         tag_api::tag_max_id(db).await? + 1,
@@ -152,6 +196,13 @@ async fn tag_api_test(db: &DbConn) -> Result<(), DbErr> {
     tag_api::tag_article(db, 1, 1).await;
     tag_api::tag_article(db, 2, 1).await;
     tag_api::tag_article(db, 1, 2).await;
+
+    let all_tags = tag_api::get_all_tags(db).await?;
+    assert_eq!(all_tags.len(), 2);
+
+    tag_api::rename_tag(db, 2, "Read Later".to_owned()).await?;
+    let renamed_tag = tag_api::get_tag(db, 2).await?;
+    assert_eq!(renamed_tag.name, "Read Later");
 
     let cool_articles = tag_api::get_articles(db, 1).await?;
     assert_eq!(cool_articles.len(), 2);
