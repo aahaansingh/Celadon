@@ -17,8 +17,9 @@ where
 }
 
 pub async fn create_tables(db: &DbConn) -> Result<(), DbErr> {
-    create_table(db, super::folder::Entity).await?;
+    create_table(db, super::superfeed::Entity).await?;
     create_table(db, super::feed::Entity).await?;
+    create_table(db, super::feed_superfeed::Entity).await?;
     create_table(db, super::article::Entity).await?;
     create_table(db, super::tag::Entity).await?;
     create_table(db, super::tag_article::Entity).await?;

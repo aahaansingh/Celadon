@@ -1,5 +1,7 @@
 use crate::api::tag_api;
+use crate::commands::undo::handle_dropped_action;
 use crate::models::{article, tag};
+use crate::undo::{Action, UndoStack};
 use sea_orm::DatabaseConnection;
 use tauri::State;
 
@@ -10,9 +12,7 @@ pub async fn get_tag(state: State<'_, DatabaseConnection>, id: i32) -> Result<ta
 }
 
 #[tauri::command]
-pub async fn get_all_tags(
-    state: State<'_, DatabaseConnection>,
-) -> Result<Vec<tag::Model>, String> {
+pub async fn get_all_tags(state: State<'_, DatabaseConnection>) -> Result<Vec<tag::Model>, String> {
     let db = state.inner();
     tag_api::get_all_tags(db).await.map_err(|e| e.to_string())
 }
@@ -20,10 +20,7 @@ pub async fn get_all_tags(
 #[tauri::command]
 pub async fn create_tag(state: State<'_, DatabaseConnection>, name: String) -> Result<(), String> {
     let db = state.inner();
-    let id = tag_api::tag_max_id(db)
-        .await
-        .map_err(|e| e.to_string())?
-        + 1;
+    let id = tag_api::tag_max_id(db).await.map_err(|e| e.to_string())? + 1;
     tag_api::create_tag(db, id, name)
         .await
         .map_err(|e| e.to_string())?;
@@ -68,11 +65,19 @@ pub async fn rename_tag(
 }
 
 #[tauri::command]
-pub async fn delete_tag(state: State<'_, DatabaseConnection>, id: i32) -> Result<(), String> {
+pub async fn delete_tag(
+    state: State<'_, DatabaseConnection>,
+    undo: State<'_, UndoStack>,
+    id: i32,
+) -> Result<(), String> {
     let db = state.inner();
     tag_api::delete_tag(db, id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    if let Some(dropped) = undo.push(Action::DeleteTag(id)) {
+        handle_dropped_action(db, dropped).await;
+    }
+    Ok(())
 }
 
 #[tauri::command]

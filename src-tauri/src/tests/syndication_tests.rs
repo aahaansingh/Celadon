@@ -1,5 +1,5 @@
-use crate::api::{feed_api, folder_api};
-use crate::models::create_tables;
+use crate::api::{feed_api, superfeed_api};
+use crate::models::{create_tables, feed};
 use crate::syndication::syndicator;
 use sea_orm::DbConn;
 
@@ -15,11 +15,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn test_add_and_update_atom_feed(db: &DbConn) -> Result<(), Box<dyn std::error::Error>> {
-    let main_folder_id = folder_api::folder_max_id(db).await? + 1;
-    folder_api::create_folder(db, main_folder_id, "main".to_owned()).await?;
+    let main_superfeed_id = superfeed_api::superfeed_max_id(db).await? + 1;
+    superfeed_api::create_superfeed(db, main_superfeed_id, "main".to_owned()).await?;
 
     let feed_url = "https://feeds.kottke.org/main".to_owned();
-    syndicator::url_to_feed(db, feed_url.clone(), main_folder_id).await?;
+    syndicator::url_to_feed(db, feed_url.clone(), main_superfeed_id, feed::FeedType::Article).await?;
 
     assert_eq!(feed_api::feed_max_id(db).await?, 1);
     let inserted_feed = feed_api::get_feed(db, 1).await?;
@@ -38,7 +38,7 @@ async fn test_add_and_update_atom_feed(db: &DbConn) -> Result<(), Box<dyn std::e
     // Ensure some time passes before next fetch
     std::thread::sleep(std::time::Duration::from_secs(1));
 
-    syndicator::url_to_feed(db, feed_url.clone(), main_folder_id).await?;
+    syndicator::url_to_feed(db, feed_url.clone(), main_superfeed_id, feed::FeedType::Article).await?;
 
     let updated_feed = feed_api::get_feed(db, 1).await?;
     assert!(updated_feed.last_fetched > initial_fetch_time);
@@ -51,11 +51,10 @@ async fn test_add_and_update_atom_feed(db: &DbConn) -> Result<(), Box<dyn std::e
 }
 
 async fn test_add_rss_feed(db: &DbConn) -> Result<(), Box<dyn std::error::Error>> {
-    assert_eq!(folder_api::folder_max_id(db).await?, 1);
-    let main_folder_id = 1;
+    let main_superfeed_id = 1;
 
     let feed_url = "https://aahaansingh.github.io/posts/index.xml".to_owned();
-    syndicator::url_to_feed(db, feed_url.clone(), main_folder_id).await?;
+    syndicator::url_to_feed(db, feed_url.clone(), main_superfeed_id, feed::FeedType::Article).await?;
 
     assert_eq!(feed_api::feed_max_id(db).await?, 2);
     let inserted_feed = feed_api::get_feed(db, 2).await?;

@@ -15,16 +15,18 @@ async fn main() -> Result<(), DbErr> {
 async fn feed_test(db: &DbConn) -> Result<(), DbErr> {
     let add = Utc::now();
     let fetch = Utc::now();
-    let root_fd = folder::ActiveModel {
+    let expiry = add + chrono::TimeDelta::days(1);
+    
+    let root_fd = superfeed::ActiveModel {
         id: Set(1),
         name: Set("base".to_owned()),
         ..Default::default()
     };
 
-    let _root_insert_suc = Folder::insert(root_fd)
+    let _root_insert_suc = Superfeed::insert(root_fd)
         .exec(db)
         .await
-        .expect("couldn't insert root folder");
+        .expect("couldn't insert root superfeed");
 
     let osearch_feed = feed::ActiveModel {
         id: Set(1),
@@ -34,7 +36,7 @@ async fn feed_test(db: &DbConn) -> Result<(), DbErr> {
         added: Set(add),
         last_fetched: Set(fetch),
         healthy: Set(true),
-        folder: Set(1),
+        feed_type: Set(feed::FeedType::News),
         ..Default::default()
     };
 
@@ -51,7 +53,7 @@ async fn feed_test(db: &DbConn) -> Result<(), DbErr> {
         added: Set(add),
         last_fetched: Set(fetch),
         healthy: Set(true),
-        folder: Set(1),
+        feed_type: Set(feed::FeedType::Article),
         ..Default::default()
     };
 
@@ -60,11 +62,25 @@ async fn feed_test(db: &DbConn) -> Result<(), DbErr> {
         .await
         .expect("couldn't insert kottke feed");
 
+    // Junction table entries
+    let junction1 = feed_superfeed::ActiveModel {
+        feed_id: Set(1),
+        superfeed_id: Set(1),
+    };
+    FeedSuperfeed::insert(junction1).exec(db).await.expect("couldn't insert junction 1");
+
+    let junction2 = feed_superfeed::ActiveModel {
+        feed_id: Set(2),
+        superfeed_id: Set(1),
+    };
+    FeedSuperfeed::insert(junction2).exec(db).await.expect("couldn't insert junction 2");
+
     let sutro_kottke_art = article::ActiveModel {
         id: Set(1),
         url: Set("https://kottke.org/25/02/the-sutro-tower-in-3d".to_owned()),
         name: Set("The Sutro Tower in 3D".to_owned()),
         published: Set(add),
+        expiry_at: Set(expiry),
         read: Set(true),
         description: Set(
             "This is an amazingly realistic 3D model of San Francisco's Sutro 

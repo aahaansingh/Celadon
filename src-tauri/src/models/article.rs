@@ -11,9 +11,12 @@ pub struct Model {
     pub url: String,
     pub name: String,
     pub published: DateTime<Utc>,
+    pub expiry_at: DateTime<Utc>,
     pub read: bool,
     pub description: String,
     pub feed: i32,
+    #[sea_orm(default_value = false)]
+    pub deleted: bool,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter)]

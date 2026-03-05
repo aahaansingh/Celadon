@@ -1,73 +1,83 @@
-use crate::api::folder_api;
-use crate::models::{feed, folder};
+use crate::api::superfeed_api;
+use crate::commands::undo::handle_dropped_action;
+use crate::models::{feed, superfeed};
+use crate::undo::{Action, UndoStack};
 use sea_orm::DatabaseConnection;
 use tauri::State;
 
 #[tauri::command]
-pub async fn get_folder(
+pub async fn get_superfeed(
     state: State<'_, DatabaseConnection>,
     id: i32,
-) -> Result<folder::Model, String> {
+) -> Result<superfeed::Model, String> {
     let db = state.inner();
-    folder_api::get_folder(db, id)
+    superfeed_api::get_superfeed(db, id)
         .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn get_all_folders(
+pub async fn get_all_superfeeds(
     state: State<'_, DatabaseConnection>,
-) -> Result<Vec<folder::Model>, String> {
+) -> Result<Vec<superfeed::Model>, String> {
     let db = state.inner();
-    folder_api::get_all_feeds(db)
+    superfeed_api::get_all_superfeeds(db)
         .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn create_folder(
+pub async fn create_superfeed(
     state: State<'_, DatabaseConnection>,
     name: String,
 ) -> Result<(), String> {
     let db = state.inner();
-    let id = folder_api::folder_max_id(db)
+    let id = superfeed_api::superfeed_max_id(db)
         .await
         .map_err(|e| e.to_string())?
         + 1;
-    folder_api::create_folder(db, id, name)
+    superfeed_api::create_superfeed(db, id, name)
         .await
         .map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn rename_folder(
+pub async fn rename_superfeed(
     state: State<'_, DatabaseConnection>,
     id: i32,
     name: String,
 ) -> Result<(), String> {
     let db = state.inner();
-    folder_api::rename_folder(db, id, name)
+    superfeed_api::rename_superfeed(db, id, name)
         .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn delete_folder(state: State<'_, DatabaseConnection>, id: i32) -> Result<(), String> {
+pub async fn delete_superfeed(
+    state: State<'_, DatabaseConnection>,
+    undo: State<'_, UndoStack>,
+    id: i32,
+) -> Result<(), String> {
     let db = state.inner();
-    folder_api::delete_folder(db, id)
+    superfeed_api::delete_superfeed(db, id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    if let Some(dropped) = undo.push(Action::DeleteSuperfeed(id)) {
+        handle_dropped_action(db, dropped).await;
+    }
+    Ok(())
 }
 
 #[tauri::command]
-pub async fn get_folder_feeds(
+pub async fn get_superfeed_feeds(
     state: State<'_, DatabaseConnection>,
     id: i32,
     num: Option<u64>,
 ) -> Result<Vec<feed::Model>, String> {
     let db = state.inner();
-    folder_api::get_feeds(db, id, num)
+    superfeed_api::get_feeds(db, id, num)
         .await
         .map_err(|e| e.to_string())
 }

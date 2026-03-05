@@ -1,10 +1,15 @@
 use crate::api::feed_api;
+use crate::commands::undo::handle_dropped_action;
 use crate::models::{article, feed};
+use crate::undo::{Action, UndoStack};
 use sea_orm::DatabaseConnection;
 use tauri::State;
 
 #[tauri::command]
-pub async fn get_feed(state: State<'_, DatabaseConnection>, id: i32) -> Result<feed::Model, String> {
+pub async fn get_feed(
+    state: State<'_, DatabaseConnection>,
+    id: i32,
+) -> Result<feed::Model, String> {
     let db = state.inner();
     feed_api::get_feed(db, id).await.map_err(|e| e.to_string())
 }
@@ -14,9 +19,7 @@ pub async fn get_all_feeds(
     state: State<'_, DatabaseConnection>,
 ) -> Result<Vec<feed::Model>, String> {
     let db = state.inner();
-    feed_api::get_all_feeds(db)
-        .await
-        .map_err(|e| e.to_string())
+    feed_api::get_all_feeds(db).await.map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -43,23 +46,43 @@ pub async fn update_feed_name(
 }
 
 #[tauri::command]
-pub async fn update_feed_folder(
+pub async fn add_feed_to_superfeed(
     state: State<'_, DatabaseConnection>,
-    id: i32,
-    folder_id: i32,
+    feed_id: i32,
+    superfeed_id: i32,
 ) -> Result<(), String> {
     let db = state.inner();
-    feed_api::update_feed_folder(db, id, folder_id)
+    feed_api::add_feed_to_superfeed(db, feed_id, superfeed_id)
         .await
         .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub async fn delete_feed(state: State<'_, DatabaseConnection>, id: i32) -> Result<(), String> {
+pub async fn remove_feed_from_superfeed(
+    state: State<'_, DatabaseConnection>,
+    feed_id: i32,
+    superfeed_id: i32,
+) -> Result<(), String> {
+    let db = state.inner();
+    feed_api::remove_feed_from_superfeed(db, feed_id, superfeed_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn delete_feed(
+    state: State<'_, DatabaseConnection>,
+    undo: State<'_, UndoStack>,
+    id: i32,
+) -> Result<(), String> {
     let db = state.inner();
     feed_api::delete_feed(db, id)
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    if let Some(dropped) = undo.push(Action::DeleteFeed(id)) {
+        handle_dropped_action(db, dropped).await;
+    }
+    Ok(())
 }
 
 #[tauri::command]

@@ -7,7 +7,10 @@ use tag::*;
 use tag_article::*;
 
 pub async fn get_tag(db: &DbConn, id: i32) -> Result<tag::Model, DbErr> {
-    let retrieved_tag = Tag::find_by_id(id).one(db).await?;
+    let retrieved_tag = Tag::find_by_id(id)
+        .filter(tag::Column::Deleted.eq(false))
+        .one(db)
+        .await?;
     match retrieved_tag {
         None => Err(DbErr::RecordNotFound("No such tag exists".to_owned())),
         Some(tag_model) => Ok(tag_model),
@@ -15,10 +18,20 @@ pub async fn get_tag(db: &DbConn, id: i32) -> Result<tag::Model, DbErr> {
 }
 
 pub async fn get_all_tags(db: &DbConn) -> Result<Vec<tag::Model>, DbErr> {
-    Tag::find().all(db).await
+    Tag::find()
+        .filter(tag::Column::Deleted.eq(false))
+        .all(db)
+        .await
 }
 
-pub async fn create_tag(db: &DbConn, id: i32, name: String) -> Result<InsertResult<tag::ActiveModel>, DbErr> {
+pub async fn create_tag(
+    db: &DbConn,
+    id: i32,
+    name: String,
+) -> Result<InsertResult<tag::ActiveModel>, DbErr> {
+    if name.contains('\\') {
+        return Err(DbErr::Custom("Name cannot contain backslashes".to_owned()));
+    }
     let insert = tag::ActiveModel {
         id: Set(id),
         name: Set(name),
@@ -55,6 +68,9 @@ pub async fn delete_tag_article(db: &DbConn, tag_id: i32, article_id: i32) -> Re
 }
 
 pub async fn rename_tag(db: &DbConn, id: i32, name: String) -> Result<(), DbErr> {
+    if name.contains('\\') {
+        return Err(DbErr::Custom("Name cannot contain backslashes".to_owned()));
+    }
     let tag_model = get_tag(db, id).await?;
     let mut tag_active: tag::ActiveModel = tag_model.into();
     tag_active.name = Set(name);
@@ -63,12 +79,34 @@ pub async fn rename_tag(db: &DbConn, id: i32, name: String) -> Result<(), DbErr>
 }
 
 pub async fn delete_tag(db: &DbConn, id: i32) -> Result<(), DbErr> {
-    let res: DeleteResult = Tag::delete_by_id(id).exec(db).await?;
-    if res.rows_affected != 1 {
-        Err(DbErr::RecordNotFound("No such tag exists".to_owned()))
-    } else {
-        Ok(())
+    let tag_model = get_tag(db, id).await?;
+    let mut tag_active: tag::ActiveModel = tag_model.into();
+    tag_active.deleted = Set(true);
+    tag_active.update(db).await?;
+    Ok(())
+}
+
+pub async fn undelete_tag(db: &DbConn, id: i32) -> Result<(), DbErr> {
+    let retrieved = Tag::find_by_id(id).one(db).await?;
+    if let Some(tag_model) = retrieved {
+        let mut tag_active: tag::ActiveModel = tag_model.into();
+        tag_active.deleted = Set(false);
+        tag_active.update(db).await?;
     }
+    Ok(())
+}
+
+pub async fn hard_delete_tag(db: &DbConn, id: i32) -> Result<(), DbErr> {
+    Tag::delete_by_id(id).exec(db).await?;
+    Ok(())
+}
+
+pub async fn cleanup_deleted_tags(db: &DbConn) -> Result<(), DbErr> {
+    Tag::delete_many()
+        .filter(tag::Column::Deleted.eq(true))
+        .exec(db)
+        .await?;
+    Ok(())
 }
 
 pub async fn tag_max_id(db: &DbConn) -> Result<i32, DbErr> {

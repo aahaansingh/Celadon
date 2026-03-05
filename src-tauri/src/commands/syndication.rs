@@ -1,3 +1,4 @@
+use crate::models::feed;
 use crate::syndication::syndicator;
 use sea_orm::DatabaseConnection;
 use tauri::State;
@@ -6,10 +7,11 @@ use tauri::State;
 pub async fn add_feed(
     state: State<'_, DatabaseConnection>,
     url: String,
-    folder_id: i32,
+    superfeed_id: i32,
+    feed_type: feed::FeedType,
 ) -> Result<(), String> {
     let db = state.inner();
-    syndicator::url_to_feed(db, url, folder_id)
+    syndicator::url_to_feed(db, url, superfeed_id, feed_type)
         .await
         .map_err(|e| e.to_string())
 }

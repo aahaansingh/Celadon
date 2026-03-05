@@ -12,9 +12,10 @@ mod basic_tests {
         /// Simple test against MockDB to ensure proper insertion/return
         let add = Utc::now();
         let fetch = Utc::now();
+        let expiry = add + chrono::TimeDelta::days(1);
         // DB Inserts
         let db = MockDatabase::new(DatabaseBackend::Postgres)
-            .append_query_results([vec![folder::Model {
+            .append_query_results([vec![superfeed::Model {
                 id: 1,
                 name: "root".to_owned(),
             }]])
@@ -27,7 +28,7 @@ mod basic_tests {
                     added: add,
                     last_fetched: fetch,
                     healthy: true,
-                    folder: 1,
+                    feed_type: feed::FeedType::News,
                 },
                 feed::Model {
                     id: 2,
@@ -37,11 +38,11 @@ mod basic_tests {
                     added: add,
                     last_fetched: fetch,
                     healthy: true,
-                    folder: 1,
+                    feed_type: feed::FeedType::Article,
                 },
             ]])
             .append_query_results([[(
-                folder::Model {
+                superfeed::Model {
                     id: 1,
                     name: "root".to_owned(),
                 },
@@ -53,14 +54,14 @@ mod basic_tests {
                     added: add,
                     last_fetched: fetch,
                     healthy: true,
-                    folder: 1,
+                    feed_type: feed::FeedType::News,
                 },
             )]])
             .into_connection();
 
         assert_eq!(
-            Folder::find().one(&db).await?,
-            Some(folder::Model {
+            Superfeed::find().one(&db).await?,
+            Some(superfeed::Model {
                 id: 1,
                 name: "root".to_owned()
             })
@@ -77,7 +78,7 @@ mod basic_tests {
                     added: add,
                     last_fetched: fetch,
                     healthy: true,
-                    folder: 1
+                    feed_type: feed::FeedType::News,
                 },
                 feed::Model {
                     id: 2,
@@ -87,18 +88,18 @@ mod basic_tests {
                     added: add,
                     last_fetched: fetch,
                     healthy: true,
-                    folder: 1
+                    feed_type: feed::FeedType::Article,
                 }
             ]
         );
 
         assert_eq!(
-            Folder::find()
+            Superfeed::find()
                 .find_also_related(feed::Entity)
                 .all(&db)
                 .await?,
             [(
-                folder::Model {
+                superfeed::Model {
                     id: 1,
                     name: "root".to_owned()
                 },
@@ -110,7 +111,7 @@ mod basic_tests {
                     added: add,
                     last_fetched: fetch,
                     healthy: true,
-                    folder: 1
+                    feed_type: feed::FeedType::News,
                 })
             )]
         );

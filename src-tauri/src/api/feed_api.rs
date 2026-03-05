@@ -17,7 +17,10 @@ pub enum FeedDtFields {
 }
 
 pub async fn get_feed(db: &DbConn, id: i32) -> Result<feed::Model, DbErr> {
-    let retrieved_feed = Feed::find_by_id(id).one(db).await?;
+    let retrieved_feed = Feed::find_by_id(id)
+        .filter(feed::Column::Deleted.eq(false))
+        .one(db)
+        .await?;
     match retrieved_feed {
         None => Err(DbErr::RecordNotFound("No such feed exists".to_owned())),
         Some(feed_model) => Ok(feed_model),
@@ -25,13 +28,17 @@ pub async fn get_feed(db: &DbConn, id: i32) -> Result<feed::Model, DbErr> {
 }
 
 pub async fn get_all_feeds(db: &DbConn) -> Result<Vec<feed::Model>, DbErr> {
-    Feed::find().all(db).await
+    Feed::find()
+        .filter(feed::Column::Deleted.eq(false))
+        .all(db)
+        .await
 }
 
 // This function is brought to you by: poor planning to key feeds by their ID rather than URL
 pub async fn get_feed_by_url(db: &DbConn, url: String) -> Result<Option<feed::Model>, DbErr> {
     let retrieved_feeds = Feed::find()
         .filter(feed::Column::Url.eq(url))
+        .filter(feed::Column::Deleted.eq(false))
         .all(db)
         .await?;
     if retrieved_feeds.len() > 1 {
@@ -55,8 +62,11 @@ pub async fn create_feed(
     added: DateTime<Utc>,
     last_fetched: DateTime<Utc>,
     healthy: bool,
-    folder: i32,
-) -> Result<InsertResult<ActiveModel>, DbErr> {
+    feed_type: feed::FeedType,
+) -> Result<InsertResult<feed::ActiveModel>, DbErr> {
+    if name.contains('\\') {
+        return Err(DbErr::Custom("Name cannot contain backslashes".to_owned()));
+    }
     let insert = feed::ActiveModel {
         id: Set(id),
         url: Set(url.to_owned()),
@@ -65,7 +75,7 @@ pub async fn create_feed(
         added: Set(added),
         last_fetched: Set(last_fetched),
         healthy: Set(healthy),
-        folder: Set(folder),
+        feed_type: Set(feed_type),
         ..Default::default()
     };
 
@@ -79,6 +89,9 @@ pub async fn update_feed_str(
     val_type: FeedStrFields,
     new_val: String,
 ) -> Result<(), DbErr> {
+    if matches!(val_type, FeedStrFields::Name) && new_val.contains('\\') {
+        return Err(DbErr::Custom("Name cannot contain backslashes".to_owned()));
+    }
     let feed_model = get_feed(db, id).await?;
     let mut feed_active: feed::ActiveModel = feed_model.into();
     match val_type {
@@ -106,11 +119,27 @@ pub async fn update_feed_dt(
     Ok(())
 }
 
-pub async fn update_feed_folder(db: &DbConn, id: i32, new_val: i32) -> Result<(), DbErr> {
-    let feed_model = get_feed(db, id).await?;
-    let mut feed_active: feed::ActiveModel = feed_model.into();
-    feed_active.folder = Set(new_val);
-    let _updated_feed_model = feed_active.update(db).await?;
+pub async fn add_feed_to_superfeed(
+    db: &DbConn,
+    feed_id: i32,
+    superfeed_id: i32,
+) -> Result<(), DbErr> {
+    let relation = feed_superfeed::ActiveModel {
+        feed_id: Set(feed_id),
+        superfeed_id: Set(superfeed_id),
+    };
+    FeedSuperfeed::insert(relation).exec(db).await?;
+    Ok(())
+}
+
+pub async fn remove_feed_from_superfeed(
+    db: &DbConn,
+    feed_id: i32,
+    superfeed_id: i32,
+) -> Result<(), DbErr> {
+    FeedSuperfeed::delete_by_id((feed_id, superfeed_id))
+        .exec(db)
+        .await?;
     Ok(())
 }
 
@@ -123,12 +152,34 @@ pub async fn update_feed_health(db: &DbConn, id: i32, new_val: bool) -> Result<(
 }
 
 pub async fn delete_feed(db: &DbConn, id: i32) -> Result<(), DbErr> {
-    let res: DeleteResult = Feed::delete_by_id(id).exec(db).await?;
-    if res.rows_affected != 1 {
-        Err(DbErr::RecordNotFound("No such feed exists".to_owned()))
-    } else {
-        Ok(())
+    let feed_model = get_feed(db, id).await?;
+    let mut feed_active: feed::ActiveModel = feed_model.into();
+    feed_active.deleted = Set(true);
+    feed_active.update(db).await?;
+    Ok(())
+}
+
+pub async fn undelete_feed(db: &DbConn, id: i32) -> Result<(), DbErr> {
+    let retrieved = Feed::find_by_id(id).one(db).await?;
+    if let Some(feed_model) = retrieved {
+        let mut feed_active: feed::ActiveModel = feed_model.into();
+        feed_active.deleted = Set(false);
+        feed_active.update(db).await?;
     }
+    Ok(())
+}
+
+pub async fn hard_delete_feed(db: &DbConn, id: i32) -> Result<(), DbErr> {
+    Feed::delete_by_id(id).exec(db).await?;
+    Ok(())
+}
+
+pub async fn cleanup_deleted_feeds(db: &DbConn) -> Result<(), DbErr> {
+    Feed::delete_many()
+        .filter(feed::Column::Deleted.eq(true))
+        .exec(db)
+        .await?;
+    Ok(())
 }
 
 // In this case, "none" indicates the retrieval of all articles; passing a number means
@@ -143,6 +194,7 @@ pub async fn get_articles(
         None => {
             let related_articles = selected_feed
                 .find_related(Article)
+                .filter(article::Column::Deleted.eq(false))
                 .order_by(article::Column::Published, Order::Desc)
                 .all(db)
                 .await?;
@@ -151,6 +203,7 @@ pub async fn get_articles(
         Some(lim) => {
             let related_articles = selected_feed
                 .find_related(Article)
+                .filter(article::Column::Deleted.eq(false))
                 .limit(lim)
                 .order_by(article::Column::Published, Order::Desc)
                 .all(db)

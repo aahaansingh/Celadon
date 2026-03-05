@@ -8,7 +8,10 @@ use sea_orm::{
 };
 
 pub async fn get_article(db: &DbConn, id: i32) -> Result<article::Model, DbErr> {
-    let retrieved_article = Article::find_by_id(id).one(db).await?;
+    let retrieved_article = Article::find_by_id(id)
+        .filter(article::Column::Deleted.eq(false))
+        .one(db)
+        .await?;
     match retrieved_article {
         None => Err(DbErr::RecordNotFound("No such article exists".to_owned())),
         Some(article_model) => Ok(article_model),
@@ -21,6 +24,7 @@ pub async fn get_article(db: &DbConn, id: i32) -> Result<article::Model, DbErr> 
 pub async fn get_article_by_url(db: &DbConn, url: String) -> Result<Option<article::Model>, DbErr> {
     let retrieved_articles = Article::find()
         .filter(article::Column::Url.eq(url))
+        .filter(article::Column::Deleted.eq(false))
         .all(db)
         .await?;
     if retrieved_articles.len() > 1 {
@@ -41,6 +45,7 @@ pub async fn create_article(
     url: String,
     name: String,
     published: DateTime<Utc>,
+    expiry_at: DateTime<Utc>,
     read: bool,
     description: String,
     feed: i32,
@@ -50,6 +55,7 @@ pub async fn create_article(
         url: Set(url),
         name: Set(name),
         published: Set(published),
+        expiry_at: Set(expiry_at),
         read: Set(read),
         description: Set(description),
         feed: Set(feed),
@@ -67,10 +73,50 @@ pub async fn read_article(db: &DbConn, id: i32) -> Result<(), DbErr> {
     Ok(())
 }
 
+pub async fn unread_article(db: &DbConn, id: i32) -> Result<(), DbErr> {
+    let article_model = get_article(db, id).await?;
+    let mut article_active: article::ActiveModel = article_model.into();
+    article_active.read = Set(false);
+    let _updated_article_model = article_active.update(db).await?;
+    Ok(())
+}
+
 pub async fn read_all(db: &DbConn, feed_id: i32) -> Result<(), DbErr> {
     let _update_result = Article::update_many()
         .col_expr(article::Column::Read, Expr::value(true))
         .filter(article::Column::Feed.eq(feed_id))
+        .filter(article::Column::Deleted.eq(false))
+        .exec(db)
+        .await?;
+    Ok(())
+}
+
+pub async fn delete_article(db: &DbConn, id: i32) -> Result<(), DbErr> {
+    let article_model = get_article(db, id).await?;
+    let mut article_active: article::ActiveModel = article_model.into();
+    article_active.deleted = Set(true);
+    article_active.update(db).await?;
+    Ok(())
+}
+
+pub async fn undelete_article(db: &DbConn, id: i32) -> Result<(), DbErr> {
+    let retrieved = Article::find_by_id(id).one(db).await?;
+    if let Some(article_model) = retrieved {
+        let mut article_active: article::ActiveModel = article_model.into();
+        article_active.deleted = Set(false);
+        article_active.update(db).await?;
+    }
+    Ok(())
+}
+
+pub async fn hard_delete_article(db: &DbConn, id: i32) -> Result<(), DbErr> {
+    Article::delete_by_id(id).exec(db).await?;
+    Ok(())
+}
+
+pub async fn cleanup_deleted_articles(db: &DbConn) -> Result<(), DbErr> {
+    Article::delete_many()
+        .filter(article::Column::Deleted.eq(true))
         .exec(db)
         .await?;
     Ok(())
@@ -93,12 +139,19 @@ pub async fn get_tags(db: &DbConn, id: i32) -> Result<Vec<tag::Model>, DbErr> {
     let related_article_tags = Article::find()
         .filter(article::Column::Id.eq(id))
         .find_with_related(Tag)
+        // Optionally filter tag::Column::Deleted == false as well, but tags list handled locally
         .all(db)
         .await?;
 
     match related_article_tags.len() {
         1 => {
-            Ok(related_article_tags[0].1.clone()) // Again, cloning may not be right here
+            let tags = related_article_tags[0]
+                .1
+                .clone()
+                .into_iter()
+                .filter(|t| !t.deleted)
+                .collect();
+            Ok(tags)
         }
         _ => Err(DbErr::RecordNotFound("No such article exists".to_owned())),
     }

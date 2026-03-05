@@ -1,7 +1,17 @@
 use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
-use sea_orm::sea_query::ForeignKeyAction;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
+#[sea_orm(rs_type = "String", db_type = "String(None)")]
+pub enum FeedType {
+    #[sea_orm(string_value = "News")]
+    News,
+    #[sea_orm(string_value = "Article")]
+    Article,
+    #[sea_orm(string_value = "Essay")]
+    Essay,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize)]
 #[sea_orm(table_name = "Feed")]
@@ -14,26 +24,15 @@ pub struct Model {
     pub added: DateTime<Utc>,
     pub last_fetched: DateTime<Utc>,
     pub healthy: bool,
-    pub folder: i32,
+    pub feed_type: FeedType,
+    #[sea_orm(default_value = false)]
+    pub deleted: bool,
 }
 
-#[derive(Copy, Clone, Debug, EnumIter)]
+#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
+    #[sea_orm(has_many = "super::article::Entity")]
     Article,
-    Folder,
-}
-
-impl RelationTrait for Relation {
-    fn def(&self) -> RelationDef {
-        match self {
-            Self::Article => Entity::has_many(super::article::Entity).into(),
-            Self::Folder => Entity::belongs_to(super::folder::Entity)
-                .from(Column::Folder)
-                .to(super::folder::Column::Id)
-                .on_delete(ForeignKeyAction::Cascade)
-                .into(),
-        }
-    }
 }
 
 impl Related<super::article::Entity> for Entity {
@@ -42,9 +41,13 @@ impl Related<super::article::Entity> for Entity {
     }
 }
 
-impl Related<super::folder::Entity> for Entity {
+impl Related<super::superfeed::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::Folder.def()
+        super::feed_superfeed::Relation::Superfeed.def()
+    }
+
+    fn via() -> Option<RelationDef> {
+        Some(super::feed_superfeed::Relation::Feed.def().rev())
     }
 }
 

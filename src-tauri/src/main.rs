@@ -5,6 +5,9 @@ mod commands;
 mod models;
 mod syndication;
 mod tests;
+mod undo;
+
+use undo::UndoStack;
 
 use sea_orm::{Database, DatabaseConnection};
 use std::fs::create_dir_all;
@@ -12,6 +15,7 @@ use tauri::Manager;
 
 fn main() {
     tauri::Builder::default()
+        .manage(UndoStack::new())
         .setup(|app| {
             let app_data_dir = app.path_resolver().app_data_dir().unwrap();
             if !app_data_dir.exists() {
@@ -30,6 +34,18 @@ fn main() {
                 models::create_tables::create_tables(&db_conn)
                     .await
                     .expect("table creation failed");
+                api::article_api::cleanup_deleted_articles(&db_conn)
+                    .await
+                    .unwrap_or(());
+                api::feed_api::cleanup_deleted_feeds(&db_conn)
+                    .await
+                    .unwrap_or(());
+                api::superfeed_api::cleanup_deleted_superfeeds(&db_conn)
+                    .await
+                    .unwrap_or(());
+                api::tag_api::cleanup_deleted_tags(&db_conn)
+                    .await
+                    .unwrap_or(());
             });
 
             app.manage(db_conn);
@@ -41,20 +57,23 @@ fn main() {
             commands::feed::get_all_feeds,
             commands::feed::get_feed_by_url,
             commands::feed::update_feed_name,
-            commands::feed::update_feed_folder,
-            commands::feed::delete_feed,
             commands::feed::get_articles,
-            // folder commands
-            commands::folder::get_folder,
-            commands::folder::get_all_folders,
-            commands::folder::create_folder,
-            commands::folder::rename_folder,
-            commands::folder::delete_folder,
-            commands::folder::get_folder_feeds,
+            commands::feed::add_feed_to_superfeed,
+            commands::feed::remove_feed_from_superfeed,
+            commands::feed::delete_feed,
+            // superfeed commands
+            commands::superfeed::get_superfeed,
+            commands::superfeed::get_all_superfeeds,
+            commands::superfeed::create_superfeed,
+            commands::superfeed::rename_superfeed,
+            commands::superfeed::delete_superfeed,
+            commands::superfeed::get_superfeed_feeds,
             // article commands
             commands::article::get_article,
             commands::article::get_article_by_url,
             commands::article::read_article,
+            commands::article::unread_article,
+            commands::article::delete_article,
             commands::article::read_all_articles_in_feed,
             commands::article::get_article_tags,
             // tag commands
@@ -68,6 +87,9 @@ fn main() {
             commands::tag::get_tagged_articles,
             // syndication commands
             commands::syndication::add_feed,
+            // undo commands
+            commands::undo::undo,
+            commands::undo::clear_undo,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

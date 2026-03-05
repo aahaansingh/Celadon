@@ -1,45 +1,42 @@
 use super::{unwrap_date, unwrap_default, RetrievalError};
 use crate::api::*;
+use crate::models::{article, feed};
 use article_api::get_article_by_url;
 use atom_syndication::Feed;
-use chrono::{DateTime, FixedOffset, Local, Utc};
+use chrono::{DateTime, Utc};
 use reqwest;
 use rss::validation::Validate;
 use rss::Channel;
-use sea_orm::{
-    entity::*, error::*, query::*, sea_query, tests_cfg::*, Database, DbConn, DeleteResult,
-};
-use std::fs::File;
-use std::io::BufReader;
+use sea_orm::{entity::*, DbConn};
 
-pub enum FeedType {
+pub enum SyndicationFeed {
     Rss(Channel),
     Atom(Feed),
 }
 
 // Using the rust-syndication wrapper's method here...
-pub async fn url_to_obj(url: &String) -> Result<FeedType, Box<dyn std::error::Error>> {
+pub async fn url_to_obj(url: &String) -> Result<SyndicationFeed, Box<dyn std::error::Error>> {
     let content = reqwest::get(url).await?.bytes().await?;
     match atom_syndication::Feed::read_from(&content[..]) {
-        Ok(obj) => Ok(FeedType::Atom(obj)),
+        Ok(obj) => Ok(SyndicationFeed::Atom(obj)),
         Err(_) => match rss::Channel::read_from(&content[..]) {
-            Ok(obj) => Ok(FeedType::Rss(obj)),
+            Ok(obj) => Ok(SyndicationFeed::Rss(obj)),
             Err(_) => Err(RetrievalError.into()),
         },
     }
 }
 
-// TODO make a function to get the feed url from site url
 pub async fn url_to_feed(
     db: &DbConn,
     url: String,
-    folder: i32,
+    superfeed_id: i32,
+    feed_type: feed::FeedType,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let feed_obj = url_to_obj(&url).await?;
     let matching_feeds = feed_api::get_feed_by_url(db, url.clone()).await?;
     match matching_feeds {
         None => {
-            let new_feed_res = new_feed(db, feed_obj, url, folder).await?;
+            let new_feed_res = new_feed(db, feed_obj, url, superfeed_id, feed_type).await?;
             Ok(new_feed_res)
         }
         Some(matched_feed) => {
@@ -49,36 +46,69 @@ pub async fn url_to_feed(
     }
 }
 
+pub fn calculate_expiry(published: DateTime<Utc>, feed_type: &feed::FeedType) -> DateTime<Utc> {
+    let duration = match feed_type {
+        feed::FeedType::News => chrono::TimeDelta::days(1),
+        feed::FeedType::Article => chrono::TimeDelta::days(3),
+        feed::FeedType::Essay => chrono::TimeDelta::days(7),
+    };
+    published + duration
+}
+
 pub async fn new_feed(
     db: &DbConn,
-    feed: FeedType,
+    feed: SyndicationFeed,
     url: String,
-    folder: i32,
+    superfeed_id: i32,
+    feed_type: feed::FeedType,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let feed_id = feed_api::feed_max_id(db).await? + 1;
     match feed {
-        FeedType::Rss(channel) => {
+        SyndicationFeed::Rss(ref channel) => {
             feed_api::create_feed(
                 db,
                 feed_id,
                 url,
                 channel.title.clone(),
-                "".to_owned(), // I didn't realize that a feed could have multiple categories, blank for now
+                "".to_owned(),
                 Utc::now(),
                 Utc::now(),
                 true,
-                folder,
+                feed_type.clone(),
             )
             .await?;
+        }
+        SyndicationFeed::Atom(ref feed_inner) => {
+            feed_api::create_feed(
+                db,
+                feed_id,
+                url,
+                feed_inner.title.value.clone(),
+                "".to_owned(),
+                Utc::now(),
+                Utc::now(),
+                true,
+                feed_type.clone(),
+            )
+            .await?;
+        }
+    }
 
-            // Should be ok to clone
+    // Add to superfeed
+    feed_api::add_feed_to_superfeed(db, feed_id, superfeed_id).await?;
+
+    // Add articles
+    match feed {
+        SyndicationFeed::Rss(ref channel) => {
             for article in channel.items.iter() {
+                let published = unwrap_date(article.pub_date.clone());
                 article_api::create_article(
                     db,
                     article_api::article_max_id(db).await? + 1,
                     unwrap_default(article.link.clone(), channel.link.clone()),
                     unwrap_default(article.title.clone(), channel.title.clone()),
-                    unwrap_date(article.pub_date.clone()),
+                    published,
+                    calculate_expiry(published, &feed_type),
                     false,
                     unwrap_default(
                         article.description.clone(),
@@ -89,21 +119,9 @@ pub async fn new_feed(
                 .await?;
             }
         }
-        FeedType::Atom(feed) => {
-            feed_api::create_feed(
-                db,
-                feed_id,
-                url,
-                feed.title.value.clone(),
-                "".to_owned(), // I didn't realize that a feed could have multiple categories, blank for now
-                Utc::now(),
-                Utc::now(),
-                true,
-                folder,
-            )
-            .await?;
-
-            for article in feed.entries.iter() {
+        SyndicationFeed::Atom(ref feed_inner) => {
+            for article in feed_inner.entries.iter() {
+                let published = unwrap_default(article.published, Utc::now().into()).to_utc();
                 article_api::create_article(
                     db,
                     article_api::article_max_id(db).await? + 1,
@@ -111,9 +129,10 @@ pub async fn new_feed(
                         .links
                         .get(0)
                         .map(|l| l.href.clone())
-                        .unwrap_or_default(), // Should be a better url
+                        .unwrap_or_default(),
                     article.title.value.clone(),
-                    unwrap_default(article.published, Utc::now().into()).to_utc(),
+                    published,
+                    calculate_expiry(published, &feed_type),
                     false,
                     unwrap_atom_content(
                         article.content.clone(),
@@ -131,13 +150,14 @@ pub async fn new_feed(
 pub async fn update_feed(
     db: &DbConn,
     id: i32,
-    feed: FeedType,
+    feed: SyndicationFeed,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let feed_model = feed_api::get_feed(db, id).await?;
     feed_api::update_feed_dt(db, id, feed_api::FeedDtFields::LastFetched, Utc::now()).await?;
     match feed {
-        FeedType::Rss(channel) => {
+        SyndicationFeed::Rss(ref channel) => {
             match channel.validate() {
-                Err(e) => {
+                Err(_) => {
                     feed_api::update_feed_health(db, id, false).await?;
                     return Ok(());
                 }
@@ -145,16 +165,16 @@ pub async fn update_feed(
                     for article in channel.items.iter() {
                         let article_url =
                             unwrap_default(article.link.clone(), channel.link.clone());
-                        // For now, we are uniquely identifying articles by URL even though for
-                        // broken feeds this might not entirely suffice
                         match get_article_by_url(db, article_url.clone()).await? {
                             None => {
+                                let published = unwrap_date(article.pub_date.clone());
                                 article_api::create_article(
                                     db,
                                     article_api::article_max_id(db).await? + 1,
                                     article_url,
                                     unwrap_default(article.title.clone(), channel.title.clone()),
-                                    unwrap_date(article.pub_date.clone()),
+                                    published,
+                                    calculate_expiry(published, &feed_model.feed_type),
                                     false,
                                     unwrap_default(
                                         article.description.clone(),
@@ -170,8 +190,8 @@ pub async fn update_feed(
                 }
             }
         }
-        FeedType::Atom(feed) => {
-            for article in feed.entries.iter() {
+        SyndicationFeed::Atom(ref feed_inner) => {
+            for article in feed_inner.entries.iter() {
                 let article_url = article
                     .links
                     .get(0)
@@ -179,12 +199,14 @@ pub async fn update_feed(
                     .unwrap_or_default();
                 match get_article_by_url(db, article_url.clone()).await? {
                     None => {
+                        let published = unwrap_default(article.published, Utc::now().into()).to_utc();
                         article_api::create_article(
                             db,
                             article_api::article_max_id(db).await? + 1,
                             article_url,
-                            article.title.value.clone(),
-                            unwrap_default(article.published, Utc::now().into()).to_utc(),
+                            feed_inner.title.value.clone(),
+                            published,
+                            calculate_expiry(published, &feed_model.feed_type),
                             false,
                             unwrap_atom_content(
                                 article.content.clone(),
