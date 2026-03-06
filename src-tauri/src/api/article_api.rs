@@ -25,6 +25,7 @@ pub async fn get_article_by_url(db: &DbConn, url: String) -> Result<Option<artic
     let retrieved_articles = Article::find()
         .filter(article::Column::Url.eq(url))
         .filter(article::Column::Deleted.eq(false))
+        .order_by_desc(article::Column::Published)
         .all(db)
         .await?;
     if retrieved_articles.len() > 1 {
@@ -117,6 +118,17 @@ pub async fn hard_delete_article(db: &DbConn, id: i32) -> Result<(), DbErr> {
 pub async fn cleanup_deleted_articles(db: &DbConn) -> Result<(), DbErr> {
     Article::delete_many()
         .filter(article::Column::Deleted.eq(true))
+        .exec(db)
+        .await?;
+    Ok(())
+}
+
+pub async fn clean_expired_articles(db: &DbConn) -> Result<(), DbErr> {
+    let _update_result = Article::update_many()
+        .col_expr(article::Column::Read, Expr::value(true))
+        .filter(article::Column::ExpiryAt.lt(Utc::now()))
+        .filter(article::Column::Read.eq(false))
+        .filter(article::Column::Deleted.eq(false))
         .exec(db)
         .await?;
     Ok(())

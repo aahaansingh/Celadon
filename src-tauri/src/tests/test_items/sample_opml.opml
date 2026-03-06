@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<opml version="1.0">
+    <head>
+        <title>Aahaan subscriptions in feedly Cloud</title>
+    </head>
+    <body>
+        <outline text="Stationery" title="Stationery">
+            <outline type="rss" text="Fueled by Clouds &amp;amp; Coffee" title="Fueled by Clouds &amp;amp; Coffee" xmlUrl="http://tina-koyama.blogspot.com/feeds/posts/default" htmlUrl="http://tina-koyama.blogspot.com/"/>
+            <outline type="rss" text="JetPens Blog" title="JetPens Blog" xmlUrl="http://feeds.feedburner.com/JetPensBlog" htmlUrl="https://www.jetpens.com/blog"/>
+            <outline type="rss" text="DMP - Dave's Mechanical Pencils" title="DMP - Dave's Mechanical Pencils" xmlUrl="http://davesmechanicalpencils.blogspot.com/feeds/posts/default" htmlUrl="http://davesmechanicalpencils.blogspot.com/"/>
+            <outline type="rss" text="Extra Fine Writing" title="Extra Fine Writing" xmlUrl="https://extrafinewriting.substack.com/feed" htmlUrl="https://extrafinewriting.substack.com"/>
+            <outline type="rss" text="The Well-Appointed Desk" title="The Well-Appointed Desk" xmlUrl="http://wellappointeddesk.tumblr.com/rss" htmlUrl="https://wellappointeddesk.tumblr.com/"/>
+            <outline type="rss" text="Bleistift" title="Bleistift" xmlUrl="http://bleistift.memm.de/?feed=rss2" htmlUrl="https://bleistift.blog/"/>
+        </outline>
+        <outline text="Culture" title="Culture">
+            <outline type="rss" text="Aquarium Drunkard" title="Aquarium Drunkard" xmlUrl="http://www.aquariumdrunkard.com/feed/" htmlUrl="https://aquariumdrunkard.com"/>
+            <outline type="rss" text="Yasmin Nair" title="Yasmin Nair" xmlUrl="https://yasminnair.com/feed/" htmlUrl="https://yasminnair.com/"/>
+            <outline type="rss" text="Wave △ Press" title="Wave △ Press" xmlUrl="https://wavepressblog.com/feed/" htmlUrl="https://wavepressblog.com"/>
+            <outline type="rss" text="McSweeney’s" title="McSweeney’s" xmlUrl="http://feeds.feedburner.com/mcsweeneys" htmlUrl="https://www.mcsweeneys.net/"/>
+            <outline type="rss" text="The Quietus" title="The Quietus" xmlUrl="http://thequietus.com/feed" htmlUrl="https://thequietus.com/"/>
+            <outline type="rss" text="Treble" title="Treble" xmlUrl="http://www.treblezine.com/rss" htmlUrl="https://www.treblezine.com/"/>
+            <outline type="rss" text="Jacobin" title="Jacobin" xmlUrl="http://jacobinmag.com/feed/" htmlUrl="https://www.jacobinmag.com"/>
+            <outline type="rss" text="SHOEGAZER ALIVE" title="SHOEGAZER ALIVE" xmlUrl="http://shoegazeralive9.blogspot.com/feeds/posts/default" htmlUrl="https://shoegazeralive9.blogspot.com/"/>
+            <outline type="rss" text="The Pudding" title="The Pudding" xmlUrl="https://pudding.cool/feed/index.xml" htmlUrl="https://pudding.cool"/>
+            <outline type="rss" text="kottke.org" title="kottke.org" xmlUrl="http://feeds.kottke.org/main" htmlUrl="https://kottke.org/"/>
+            <outline type="rss" text="Pigiama Magazine ☾" title="Pigiama Magazine ☾" xmlUrl="https://pigiamazine.com/feed/" htmlUrl="https://pigiamazine.com"/>
+            <outline type="rss" text="Current Affairs" title="Current Affairs" xmlUrl="http://editor.currentaffairs.org/feed/" htmlUrl="https://editor.currentaffairs.org"/>
+            <outline type="rss" text="McMansion Hell" title="McMansion Hell" xmlUrl="http://mcmansionhell.tumblr.com/rss" htmlUrl="https://mcmansionhell.com/"/>
+            <outline type="rss" text="Benjamin Studebaker" title="Benjamin Studebaker" xmlUrl="http://benjaminstudebaker.com/feed/" htmlUrl="https://benjaminstudebaker.com"/>
+        </outline>
+        <outline text="Sports" title="Sports">
+            <outline type="rss" text="Good Areas" title="Good Areas" xmlUrl="https://www.goodareas.co/rss/" htmlUrl="https://www.goodareas.co/"/>
+            <outline type="rss" text="These Football Times" title="These Football Times" xmlUrl="http://thesefootballtimes.co/feed/" htmlUrl="https://thesefootballtimes.co/"/>
+            <outline type="rss" text="Cricinfo Blogs" title="Cricinfo Blogs" xmlUrl="http://www.espncricinfo.com/rss/content/story/feeds/blogs.rss" htmlUrl="https://www.espncricinfo.com/"/>
+        </outline>
+    </body>
+</opml>

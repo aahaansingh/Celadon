@@ -34,6 +34,9 @@ fn main() {
                 models::create_tables::create_tables(&db_conn)
                     .await
                     .expect("table creation failed");
+                api::article_api::clean_expired_articles(&db_conn)
+                    .await
+                    .unwrap_or(());
                 api::article_api::cleanup_deleted_articles(&db_conn)
                     .await
                     .unwrap_or(());
@@ -90,6 +93,9 @@ fn main() {
             // undo commands
             commands::undo::undo,
             commands::undo::clear_undo,
+            // opml commands
+            commands::opml::import_opml,
+            commands::opml::export_opml,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
