@@ -1,4 +1,5 @@
 use crate::api::{feed_api, superfeed_api};
+use crate::models::article::ReadFilter;
 use crate::models::{create_tables, feed};
 use crate::syndication::syndicator;
 use sea_orm::DbConn;
@@ -19,7 +20,13 @@ async fn test_add_and_update_atom_feed(db: &DbConn) -> Result<(), Box<dyn std::e
     superfeed_api::create_superfeed(db, main_superfeed_id, "main".to_owned()).await?;
 
     let feed_url = "https://feeds.kottke.org/main".to_owned();
-    syndicator::url_to_feed(db, feed_url.clone(), main_superfeed_id, feed::FeedType::Article).await?;
+    syndicator::url_to_feed(
+        db,
+        feed_url.clone(),
+        main_superfeed_id,
+        feed::FeedType::Article,
+    )
+    .await?;
 
     assert_eq!(feed_api::feed_max_id(db).await?, 1);
     let inserted_feed = feed_api::get_feed(db, 1).await?;
@@ -30,7 +37,7 @@ async fn test_add_and_update_atom_feed(db: &DbConn) -> Result<(), Box<dyn std::e
         .unwrap();
     assert_eq!(retrieved_feed.id, 1);
 
-    let retrieved_articles = feed_api::get_articles(db, 1, None).await?;
+    let retrieved_articles = feed_api::get_articles(db, 1, ReadFilter::All, None, None).await?;
     let initial_article_count = retrieved_articles.len();
     assert!(initial_article_count > 0);
 
@@ -38,12 +45,19 @@ async fn test_add_and_update_atom_feed(db: &DbConn) -> Result<(), Box<dyn std::e
     // Ensure some time passes before next fetch
     std::thread::sleep(std::time::Duration::from_secs(1));
 
-    syndicator::url_to_feed(db, feed_url.clone(), main_superfeed_id, feed::FeedType::Article).await?;
+    syndicator::url_to_feed(
+        db,
+        feed_url.clone(),
+        main_superfeed_id,
+        feed::FeedType::Article,
+    )
+    .await?;
 
     let updated_feed = feed_api::get_feed(db, 1).await?;
     assert!(updated_feed.last_fetched > initial_fetch_time);
 
-    let newly_retrieved_articles = feed_api::get_articles(db, 1, None).await?;
+    let newly_retrieved_articles =
+        feed_api::get_articles(db, 1, ReadFilter::All, None, None).await?;
     assert_eq!(initial_article_count, newly_retrieved_articles.len());
     assert_eq!(feed_api::feed_max_id(db).await?, 1);
 
@@ -54,18 +68,22 @@ async fn test_add_rss_feed(db: &DbConn) -> Result<(), Box<dyn std::error::Error>
     let main_superfeed_id = 1;
 
     let feed_url = "https://aahaansingh.github.io/posts/index.xml".to_owned();
-    syndicator::url_to_feed(db, feed_url.clone(), main_superfeed_id, feed::FeedType::Article).await?;
+    syndicator::url_to_feed(
+        db,
+        feed_url.clone(),
+        main_superfeed_id,
+        feed::FeedType::Article,
+    )
+    .await?;
 
     assert_eq!(feed_api::feed_max_id(db).await?, 2);
     let inserted_feed = feed_api::get_feed(db, 2).await?;
     assert_eq!(inserted_feed.name, "Posts on Aahaan Singh");
 
-    let retrieved_feed = feed_api::get_feed_by_url(db, feed_url)
-        .await?
-        .unwrap();
+    let retrieved_feed = feed_api::get_feed_by_url(db, feed_url).await?.unwrap();
     assert_eq!(retrieved_feed.id, 2);
 
-    let articles = feed_api::get_articles(db, 2, None).await?;
+    let articles = feed_api::get_articles(db, 2, ReadFilter::All, None, None).await?;
     assert!(articles.len() > 0);
 
     Ok(())

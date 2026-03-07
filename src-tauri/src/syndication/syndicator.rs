@@ -1,13 +1,13 @@
 use super::{unwrap_date, unwrap_default, RetrievalError};
-use crate::api::*;
-use crate::models::{article, feed};
+use crate::api::{article_api, feed_api};
+use crate::models::feed;
 use article_api::get_article_by_url;
 use atom_syndication::Feed;
 use chrono::{DateTime, Utc};
 use reqwest;
 use rss::validation::Validate;
 use rss::Channel;
-use sea_orm::{entity::*, DbConn};
+use sea_orm::DbConn;
 
 pub enum SyndicationFeed {
     Rss(Channel),
@@ -155,41 +155,38 @@ pub async fn update_feed(
     let feed_model = feed_api::get_feed(db, id).await?;
     feed_api::update_feed_dt(db, id, feed_api::FeedDtFields::LastFetched, Utc::now()).await?;
     match feed {
-        SyndicationFeed::Rss(ref channel) => {
-            match channel.validate() {
-                Err(_) => {
-                    feed_api::update_feed_health(db, id, false).await?;
-                    return Ok(());
-                }
-                Ok(_) => {
-                    for article in channel.items.iter() {
-                        let article_url =
-                            unwrap_default(article.link.clone(), channel.link.clone());
-                        match get_article_by_url(db, article_url.clone()).await? {
-                            None => {
-                                let published = unwrap_date(article.pub_date.clone());
-                                article_api::create_article(
-                                    db,
-                                    article_api::article_max_id(db).await? + 1,
-                                    article_url,
-                                    unwrap_default(article.title.clone(), channel.title.clone()),
-                                    published,
-                                    calculate_expiry(published, &feed_model.feed_type),
-                                    false,
-                                    unwrap_default(
-                                        article.description.clone(),
-                                        "No description provided.".to_owned(),
-                                    ),
-                                    id,
-                                )
-                                .await?;
-                            }
-                            Some(_) => {}
+        SyndicationFeed::Rss(ref channel) => match channel.validate() {
+            Err(_) => {
+                feed_api::update_feed_health(db, id, false).await?;
+                return Ok(());
+            }
+            Ok(_) => {
+                for article in channel.items.iter() {
+                    let article_url = unwrap_default(article.link.clone(), channel.link.clone());
+                    match get_article_by_url(db, article_url.clone()).await? {
+                        None => {
+                            let published = unwrap_date(article.pub_date.clone());
+                            article_api::create_article(
+                                db,
+                                article_api::article_max_id(db).await? + 1,
+                                article_url,
+                                unwrap_default(article.title.clone(), channel.title.clone()),
+                                published,
+                                calculate_expiry(published, &feed_model.feed_type),
+                                false,
+                                unwrap_default(
+                                    article.description.clone(),
+                                    "No description provided.".to_owned(),
+                                ),
+                                id,
+                            )
+                            .await?;
                         }
+                        Some(_) => {}
                     }
                 }
             }
-        }
+        },
         SyndicationFeed::Atom(ref feed_inner) => {
             for article in feed_inner.entries.iter() {
                 let article_url = article
@@ -199,7 +196,8 @@ pub async fn update_feed(
                     .unwrap_or_default();
                 match get_article_by_url(db, article_url.clone()).await? {
                     None => {
-                        let published = unwrap_default(article.published, Utc::now().into()).to_utc();
+                        let published =
+                            unwrap_default(article.published, Utc::now().into()).to_utc();
                         article_api::create_article(
                             db,
                             article_api::article_max_id(db).await? + 1,

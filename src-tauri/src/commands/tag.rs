@@ -80,13 +80,29 @@ pub async fn delete_tag(
     Ok(())
 }
 
+use crate::models::article::ReadFilter;
+
 #[tauri::command]
 pub async fn get_tagged_articles(
     state: State<'_, DatabaseConnection>,
     id: i32,
+    filter: ReadFilter,
+    num: Option<u64>,
+    offset: Option<u64>,
 ) -> Result<Vec<article::Model>, String> {
     let db = state.inner();
-    tag_api::get_articles(db, id)
+    tag_api::get_articles(db, id, filter, num, offset)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn search_tags(
+    state: State<'_, DatabaseConnection>,
+    query: String,
+) -> Result<Vec<tag::Model>, String> {
+    let db = state.inner();
+    tag_api::search_tags(db, query)
         .await
         .map_err(|e| e.to_string())
 }

@@ -1,11 +1,20 @@
-use super::feed_api::get_feed;
-use crate::models::*;
-use article::ActiveModel;
+use crate::models::article::Entity as Article;
+use crate::models::article::ReadFilter;
+use crate::models::{article, tag};
 use chrono::{DateTime, Utc};
-use prelude::Expr;
-use sea_orm::{
-    entity::*, error::*, query::*, sea_query, tests_cfg::*, Database, DbConn, DeleteResult,
-};
+use sea_orm::entity::prelude::*;
+use sea_orm::{InsertResult, QueryFilter, QueryOrder, QuerySelect, Set};
+
+fn apply_read_filter<E>(query: Select<E>, filter: ReadFilter) -> Select<E>
+where
+    E: EntityTrait,
+{
+    match filter {
+        ReadFilter::Unread => query.filter(article::Column::Read.eq(false)),
+        ReadFilter::Read => query.filter(article::Column::Read.eq(true)),
+        ReadFilter::All => query,
+    }
+}
 
 pub async fn get_article(db: &DbConn, id: i32) -> Result<article::Model, DbErr> {
     let retrieved_article = Article::find_by_id(id)
@@ -18,9 +27,6 @@ pub async fn get_article(db: &DbConn, id: i32) -> Result<article::Model, DbErr> 
     }
 }
 
-// Again, I should have keyed by URL...
-// Not because feeds can be uniquely identified by URL but because dealing wih linkless articles
-// is beyond the bounds of necessity
 pub async fn get_article_by_url(db: &DbConn, url: String) -> Result<Option<article::Model>, DbErr> {
     let retrieved_articles = Article::find()
         .filter(article::Column::Url.eq(url))
@@ -50,7 +56,7 @@ pub async fn create_article(
     read: bool,
     description: String,
     feed: i32,
-) -> Result<InsertResult<ActiveModel>, DbErr> {
+) -> Result<InsertResult<article::ActiveModel>, DbErr> {
     let insert = article::ActiveModel {
         id: Set(id),
         url: Set(url),
@@ -147,11 +153,61 @@ pub async fn article_max_id(db: &DbConn) -> Result<i32, DbErr> {
     }
 }
 
+pub async fn get_all_articles_sorted_relative(
+    db: &DbConn,
+    filter: ReadFilter,
+    num: Option<u64>,
+    offset: Option<u64>,
+) -> Result<Vec<article::Model>, DbErr> {
+    let mut query = Article::find().filter(article::Column::Deleted.eq(false));
+
+    query = apply_read_filter(query, filter);
+
+    query = query.order_by_asc(Expr::cust("CAST(strftime('%s', 'now') - strftime('%s', published) AS FLOAT) / CAST(strftime('%s', expiry_at) - strftime('%s', published) AS FLOAT)"));
+
+    if let Some(lim) = num {
+        query = query.limit(lim);
+    }
+    if let Some(off) = offset {
+        query = query.offset(off);
+    }
+
+    query.all(db).await
+}
+
+pub async fn search_articles(
+    db: &DbConn,
+    search_query: String,
+    filter: ReadFilter,
+    num: Option<u64>,
+    offset: Option<u64>,
+) -> Result<Vec<article::Model>, DbErr> {
+    let mut query = Article::find()
+        .filter(article::Column::Deleted.eq(false))
+        .filter(
+            article::Column::Name
+                .contains(&search_query)
+                .or(article::Column::Description.contains(&search_query)),
+        );
+
+    query = apply_read_filter(query, filter);
+
+    query = query.order_by_asc(Expr::cust("CAST(strftime('%s', 'now') - strftime('%s', published) AS FLOAT) / CAST(strftime('%s', expiry_at) - strftime('%s', published) AS FLOAT)"));
+
+    if let Some(lim) = num {
+        query = query.limit(lim);
+    }
+    if let Some(off) = offset {
+        query = query.offset(off);
+    }
+
+    query.all(db).await
+}
+
 pub async fn get_tags(db: &DbConn, id: i32) -> Result<Vec<tag::Model>, DbErr> {
     let related_article_tags = Article::find()
         .filter(article::Column::Id.eq(id))
-        .find_with_related(Tag)
-        // Optionally filter tag::Column::Deleted == false as well, but tags list handled locally
+        .find_with_related(tag::Entity)
         .all(db)
         .await?;
 

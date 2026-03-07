@@ -2,7 +2,7 @@ use crate::api::{feed_api, superfeed_api};
 use crate::models::feed::FeedType;
 use chrono::Utc;
 use opml::{Body, Head, Outline, OPML};
-use sea_orm::{DatabaseConnection, DbConn};
+use sea_orm::DbConn;
 
 pub async fn import_opml_internal(db: &DbConn, path: String) -> Result<(), String> {
     let xml = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;

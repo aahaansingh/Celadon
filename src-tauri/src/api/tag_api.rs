@@ -1,10 +1,10 @@
-use crate::models::*;
-use chrono::{DateTime, Utc};
-use sea_orm::{
-    entity::*, error::*, query::*, sea_query, tests_cfg::*, Database, DbConn, DeleteResult,
-};
-use tag::*;
-use tag_article::*;
+use crate::models::article::Entity as Article;
+use crate::models::article::ReadFilter;
+use crate::models::tag::Entity as Tag;
+use crate::models::tag_article::Entity as TagArticle;
+use crate::models::{article, tag, tag_article};
+use sea_orm::entity::prelude::*;
+use sea_orm::{DeleteResult, InsertResult, JoinType, QueryFilter, QueryOrder, QuerySelect, Set};
 
 pub async fn get_tag(db: &DbConn, id: i32) -> Result<tag::Model, DbErr> {
     let retrieved_tag = Tag::find_by_id(id)
@@ -122,16 +122,49 @@ pub async fn tag_max_id(db: &DbConn) -> Result<i32, DbErr> {
     }
 }
 
-pub async fn get_articles(db: &DbConn, id: i32) -> Result<Vec<article::Model>, DbErr> {
-    let related_tag_articles = Tag::find()
-        .filter(tag::Column::Id.eq(id))
-        .find_with_related(Article)
-        .all(db)
-        .await?;
-    match related_tag_articles.len() {
-        1 => {
-            Ok(related_tag_articles[0].1.clone()) // Not sure if I should clone...
+pub async fn get_articles(
+    db: &DbConn,
+    id: i32,
+    filter: ReadFilter,
+    num: Option<u64>,
+    offset: Option<u64>,
+) -> Result<Vec<article::Model>, DbErr> {
+    let _selected_tag = get_tag(db, id).await?;
+
+    let mut query = Article::find()
+        .join(
+            JoinType::InnerJoin,
+            tag_article::Relation::Article.def().rev(),
+        )
+        .filter(tag_article::Column::TagId.eq(id))
+        .filter(article::Column::Deleted.eq(false));
+
+    match filter {
+        ReadFilter::Unread => {
+            query = query.filter(article::Column::Read.eq(false));
         }
-        _ => Err(DbErr::RecordNotFound("No such tag exists".to_owned())),
+        ReadFilter::Read => {
+            query = query.filter(article::Column::Read.eq(true));
+        }
+        ReadFilter::All => {}
     }
+
+    query = query.order_by_asc(Expr::cust("CAST(strftime('%s', 'now') - strftime('%s', published) AS FLOAT) / CAST(strftime('%s', expiry_at) - strftime('%s', published) AS FLOAT)"));
+
+    if let Some(lim) = num {
+        query = query.limit(lim);
+    }
+    if let Some(off) = offset {
+        query = query.offset(off);
+    }
+
+    query.all(db).await
+}
+
+pub async fn search_tags(db: &DbConn, query: String) -> Result<Vec<tag::Model>, DbErr> {
+    Tag::find()
+        .filter(tag::Column::Name.contains(&query))
+        .filter(tag::Column::Deleted.eq(false))
+        .all(db)
+        .await
 }

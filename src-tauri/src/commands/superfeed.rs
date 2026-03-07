@@ -1,6 +1,7 @@
 use crate::api::superfeed_api;
 use crate::commands::undo::handle_dropped_action;
-use crate::models::{feed, superfeed};
+use crate::models::article::ReadFilter;
+use crate::models::{article, feed, superfeed};
 use crate::undo::{Action, UndoStack};
 use sea_orm::DatabaseConnection;
 use tauri::State;
@@ -78,6 +79,31 @@ pub async fn get_superfeed_feeds(
 ) -> Result<Vec<feed::Model>, String> {
     let db = state.inner();
     superfeed_api::get_feeds(db, id, num)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_superfeed_articles(
+    state: State<'_, DatabaseConnection>,
+    id: i32,
+    filter: ReadFilter,
+    num: Option<u64>,
+    offset: Option<u64>,
+) -> Result<Vec<article::Model>, String> {
+    let db = state.inner();
+    superfeed_api::get_articles(db, id, filter, num, offset)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn search_superfeeds(
+    state: State<'_, DatabaseConnection>,
+    query: String,
+) -> Result<Vec<superfeed::Model>, String> {
+    let db = state.inner();
+    superfeed_api::search_superfeeds(db, query)
         .await
         .map_err(|e| e.to_string())
 }

@@ -1,9 +1,11 @@
-use crate::models::*;
+use crate::models::article::Entity as Article;
+use crate::models::article::ReadFilter;
+use crate::models::feed::Entity as Feed;
+use crate::models::feed_superfeed::Entity as FeedSuperfeed;
+use crate::models::{article, feed, feed_superfeed};
 use chrono::{DateTime, Utc};
-use feed::ActiveModel;
-use sea_orm::{
-    entity::*, error::*, query::*, sea_query, tests_cfg::*, Database, DbConn, DeleteResult,
-};
+use sea_orm::entity::prelude::*;
+use sea_orm::{InsertResult, QueryFilter, QueryOrder, QuerySelect, Set};
 
 pub enum FeedStrFields {
     Url,
@@ -34,7 +36,6 @@ pub async fn get_all_feeds(db: &DbConn) -> Result<Vec<feed::Model>, DbErr> {
         .await
 }
 
-// This function is brought to you by: poor planning to key feeds by their ID rather than URL
 pub async fn get_feed_by_url(db: &DbConn, url: String) -> Result<Option<feed::Model>, DbErr> {
     let retrieved_feeds = Feed::find()
         .filter(feed::Column::Url.eq(url))
@@ -82,7 +83,6 @@ pub async fn create_feed(
     Feed::insert(insert).exec(db).await
 }
 
-// Setters
 pub async fn update_feed_str(
     db: &DbConn,
     id: i32,
@@ -182,35 +182,38 @@ pub async fn cleanup_deleted_feeds(db: &DbConn) -> Result<(), DbErr> {
     Ok(())
 }
 
-// In this case, "none" indicates the retrieval of all articles; passing a number means
-// adding a limit expression of that quantity
 pub async fn get_articles(
     db: &DbConn,
     id: i32,
+    filter: ReadFilter,
     num: Option<u64>,
+    offset: Option<u64>,
 ) -> Result<Vec<article::Model>, DbErr> {
     let selected_feed = get_feed(db, id).await?;
-    match num {
-        None => {
-            let related_articles = selected_feed
-                .find_related(Article)
-                .filter(article::Column::Deleted.eq(false))
-                .order_by(article::Column::Published, Order::Desc)
-                .all(db)
-                .await?;
-            Ok(related_articles)
+    let mut query = selected_feed
+        .find_related(Article)
+        .filter(article::Column::Deleted.eq(false));
+
+    match filter {
+        ReadFilter::Unread => {
+            query = query.filter(article::Column::Read.eq(false));
         }
-        Some(lim) => {
-            let related_articles = selected_feed
-                .find_related(Article)
-                .filter(article::Column::Deleted.eq(false))
-                .limit(lim)
-                .order_by(article::Column::Published, Order::Desc)
-                .all(db)
-                .await?;
-            Ok(related_articles)
+        ReadFilter::Read => {
+            query = query.filter(article::Column::Read.eq(true));
         }
+        ReadFilter::All => {}
     }
+
+    query = query.order_by_asc(Expr::cust("CAST(strftime('%s', 'now') - strftime('%s', published) AS FLOAT) / CAST(strftime('%s', expiry_at) - strftime('%s', published) AS FLOAT)"));
+
+    if let Some(lim) = num {
+        query = query.limit(lim);
+    }
+    if let Some(off) = offset {
+        query = query.offset(off);
+    }
+
+    query.all(db).await
 }
 
 pub async fn feed_max_id(db: &DbConn) -> Result<i32, DbErr> {
@@ -224,4 +227,12 @@ pub async fn feed_max_id(db: &DbConn) -> Result<i32, DbErr> {
         None => Ok(0),
         Some(max) => Ok(max),
     }
+}
+
+pub async fn search_feeds(db: &DbConn, query: String) -> Result<Vec<feed::Model>, DbErr> {
+    Feed::find()
+        .filter(feed::Column::Name.contains(&query))
+        .filter(feed::Column::Deleted.eq(false))
+        .all(db)
+        .await
 }

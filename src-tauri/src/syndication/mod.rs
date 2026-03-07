@@ -28,7 +28,7 @@ pub fn unwrap_date(opt: Option<String>) -> DateTime<Utc> {
         Some(timestamp) => {
             let parse_result = DateTime::parse_from_rfc2822(&timestamp);
             match parse_result {
-                Err(e) => Utc::now(),
+                Err(_) => Utc::now(),
                 Ok(dt) => dt.to_utc(),
             }
         }

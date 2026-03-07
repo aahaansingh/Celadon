@@ -1,8 +1,8 @@
-use super::utils::{self, TestDB};
-use crate::api::*;
+use super::utils::TestDB;
+use crate::api::{article_api, feed_api, superfeed_api, tag_api};
 use crate::models::{create_tables, feed};
 use chrono::Utc;
-use sea_orm::{DbConn, DbErr};
+use sea_orm::DbErr;
 
 #[async_std::test]
 async fn test_undo_functionality() -> Result<(), DbErr> {

@@ -1,0 +1,110 @@
+<script lang="ts">
+	import type { Article, Feed } from '$lib/api';
+	import { Clock, CheckCircle2, Circle, Tag, ExternalLink } from 'lucide-svelte';
+	import { onMount } from 'svelte';
+
+	let { article, feed, onToggleRead, onAddTag, onShowFeed, onClick } = $props<{
+		article: Article;
+		feed?: Feed;
+		onToggleRead: () => void;
+		onAddTag: () => void;
+		onShowFeed: () => void;
+		onClick: () => void;
+	}>();
+
+	const typeColors: Record<string, string> = {
+		News: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+		Article: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+		Essay: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+	};
+
+	const typeLabels: Record<string, string> = {
+		News: '1D',
+		Article: '3D',
+		Essay: '1W'
+	};
+
+	function getTimeAgo(dateStr: string) {
+		const date = new Date(dateStr);
+		const now = new Date();
+		const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+		if (diffInSeconds < 60) return 'Just now';
+		if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+		if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+		return `${Math.floor(diffInSeconds / 86400)}d ago`;
+	}
+
+	let timeAgo = $derived(getTimeAgo(article.published));
+</script>
+
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+	onclick={onClick}
+	class="bg-card border border-border beveled p-4 cursor-pointer hover:shadow-lg transition-all duration-300 h-[220px] flex flex-col justify-between group relative overflow-hidden"
+>
+	<div class="flex-1 overflow-hidden">
+		<div class="flex items-start justify-between gap-2 mb-2">
+			<h3
+				class="line-clamp-3 text-sm font-heading leading-tight group-hover:text-primary transition-colors"
+			>
+				{article.name}
+			</h3>
+			<button
+				onclick={(e) => {
+					e.stopPropagation();
+					onToggleRead();
+				}}
+				class="shrink-0 mt-0.5 p-1 hover:bg-muted rounded-full transition-colors"
+			>
+				{#if article.read}
+					<CheckCircle2 class="w-4 h-4 text-muted-foreground" />
+				{:else}
+					<Circle class="w-4 h-4 text-primary fill-primary/20" />
+				{/if}
+			</button>
+		</div>
+
+		<div class="space-y-1.5 text-xs text-muted-foreground font-body">
+			<p class="truncate font-medium">{feed?.name || 'Unknown Feed'}</p>
+			<div class="flex items-center gap-1">
+				<Clock class="w-3 h-3" />
+				<span>{timeAgo}</span>
+			</div>
+		</div>
+	</div>
+
+	<div class="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border">
+		<div class="flex items-center gap-2 flex-wrap min-w-0">
+			{#if feed}
+				<span
+					class={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${typeColors[feed.feed_type]}`}
+				>
+					{typeLabels[feed.feed_type]}
+				</span>
+			{/if}
+			<!-- Tags placeholder -->
+			<div class="flex gap-1">
+				<Tag class="w-3 h-3 text-muted-foreground" />
+			</div>
+		</div>
+
+		<button
+			onclick={(e) => {
+				e.stopPropagation();
+				window.open(article.url, '_blank');
+			}}
+			class="text-muted-foreground hover:text-primary transition-colors"
+		>
+			<ExternalLink class="w-3 link-icon" />
+		</button>
+	</div>
+</div>
+
+<style>
+	.link-icon {
+		width: 14px;
+		height: 14px;
+	}
+</style>

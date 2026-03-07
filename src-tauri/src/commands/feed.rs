@@ -85,14 +85,29 @@ pub async fn delete_feed(
     Ok(())
 }
 
+use crate::models::article::ReadFilter;
+
 #[tauri::command]
 pub async fn get_articles(
     state: State<'_, DatabaseConnection>,
     id: i32,
+    filter: ReadFilter,
     num: Option<u64>,
+    offset: Option<u64>,
 ) -> Result<Vec<article::Model>, String> {
     let db = state.inner();
-    feed_api::get_articles(db, id, num)
+    feed_api::get_articles(db, id, filter, num, offset)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn search_feeds(
+    state: State<'_, DatabaseConnection>,
+    query: String,
+) -> Result<Vec<feed::Model>, String> {
+    let db = state.inner();
+    feed_api::search_feeds(db, query)
         .await
         .map_err(|e| e.to_string())
 }

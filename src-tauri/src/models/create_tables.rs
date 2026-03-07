@@ -23,5 +23,21 @@ pub async fn create_tables(db: &DbConn) -> Result<(), DbErr> {
     create_table(db, super::article::Entity).await?;
     create_table(db, super::tag::Entity).await?;
     create_table(db, super::tag_article::Entity).await?;
+
+    // Create Article indices for performance
+    db.execute(sea_orm::Statement::from_string(
+        db.get_database_backend(),
+        "CREATE INDEX IF NOT EXISTS idx_articles_sorting ON Article(deleted, read, published DESC);"
+            .to_owned(),
+    ))
+    .await?;
+
+    db.execute(sea_orm::Statement::from_string(
+        db.get_database_backend(),
+        "CREATE INDEX IF NOT EXISTS idx_articles_feed_filter ON Article(feed, deleted, read, published DESC);"
+            .to_owned(),
+    ))
+    .await?;
+
     Ok(())
 }

@@ -1,0 +1,96 @@
+   Compiling app v0.1.0 (/Users/aahaansingh/Desktop/Experiment/Celadon_ALL/Celadon/src-tauri)
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `create_tables`
+  --> src/tests/api_tests.rs:12:5
+   |
+12 |     create_tables::create_tables(&test_db.db).await?;
+   |     ^^^^^^^^^^^^^ use of unresolved module or unlinked crate `create_tables`
+   |
+   = help: if you wanted to use a crate named `create_tables`, use `cargo add create_tables` to add it to your `Cargo.toml`
+help: consider importing this module
+   |
+1  + use crate::models::create_tables;
+   |
+
+error[E0433]: failed to resolve: use of unresolved module or unlinked crate `create_tables`
+  --> src/tests/undo_tests.rs:11:5
+   |
+11 |     create_tables::create_tables(db).await?;
+   |     ^^^^^^^^^^^^^ use of unresolved module or unlinked crate `create_tables`
+   |
+   = help: if you wanted to use a crate named `create_tables`, use `cargo add create_tables` to add it to your `Cargo.toml`
+help: consider importing this module
+   |
+1  + use crate::models::create_tables;
+   |
+
+warning: unused import: `DeleteResult`
+ --> src/api/feed_api.rs:8:15
+  |
+8 | use sea_orm::{DeleteResult, InsertResult, QueryFilter, QueryOrder, QuerySelect, Set};
+  |               ^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused imports: `DatabaseConnection` and `ExecResult`
+ --> src/models/create_tables.rs:2:32
+  |
+2 |     error::*, ConnectionTrait, DatabaseConnection, DbConn, EntityTrait, ExecResult, Schema,
+  |                                ^^^^^^^^^^^^^^^^^^                       ^^^^^^^^^^
+
+warning: unused import: `article::Entity as Article`
+  --> src/models/mod.rs:10:9
+   |
+10 | pub use article::Entity as Article;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `feed::Entity as Feed`
+  --> src/models/mod.rs:11:9
+   |
+11 | pub use feed::Entity as Feed;
+   |         ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `feed_superfeed::Entity as FeedSuperfeed`
+  --> src/models/mod.rs:12:9
+   |
+12 | pub use feed_superfeed::Entity as FeedSuperfeed;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `settings::Entity as Settings`
+  --> src/models/mod.rs:13:9
+   |
+13 | pub use settings::Entity as Settings;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `superfeed::Entity as Superfeed`
+  --> src/models/mod.rs:14:9
+   |
+14 | pub use superfeed::Entity as Superfeed;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `tag::Entity as Tag`
+  --> src/models/mod.rs:15:9
+   |
+15 | pub use tag::Entity as Tag;
+   |         ^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `tag_article::Entity as TagArticle`
+  --> src/models/mod.rs:16:9
+   |
+16 | pub use tag_article::Entity as TagArticle;
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `opml_api`
+ --> src/tests/query_tests.rs:2:41
+  |
+2 | use crate::api::{article_api, feed_api, opml_api, superfeed_api, tag_api};
+  |                                         ^^^^^^^^
+
+warning: unused import: `std::env`
+ --> src/tests/query_tests.rs:6:5
+  |
+6 | use std::env;
+  |     ^^^^^^^^
+
+For more information about this error, try `rustc --explain E0433`.
+warning: `app` (bin "app" test) generated 11 warnings
+error: could not compile `app` (bin "app" test) due to 2 previous errors; 11 warnings emitted

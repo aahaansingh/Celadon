@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@theme {
+  --color-celadon: #ace1af;
+  --color-celadon-dark: #70a37f;
+  --color-celadon-light: #c8e6c9;
+  
+  --font-body: "Alegreya", serif;
+  --font-heading: "Libre Baskerville", serif;
+
+  --radius-bevel: 12px;
+}
+
+:root {
+  --celadon: var(--color-celadon);
+  --celadon-dark: var(--color-celadon-dark);
+}
+
+body {
+  @apply font-body bg-background text-foreground antialiased;
+  /* Alegreya scale-up: slightly larger default to ensure readability */
+  font-size: 1.1rem;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  @apply font-heading tracking-tight;
+  /* Libre Baskerville scale-down: it's naturally large, so we normalize it */
+  line-height: 1.2;
+}
+
+.beveled {
+  border-radius: var(--radius-bevel);
+}
+
+/* Scrollbar styling for a premium feel */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/20 rounded-full hover:bg-muted-foreground/40 transition-colors;
+}

@@ -1,5 +1,6 @@
-use super::utils::{self, TestDB};
-use crate::api::*;
+use super::utils::TestDB;
+use crate::api::{article_api, feed_api, superfeed_api, tag_api};
+use crate::models::article::ReadFilter;
 use crate::models::{create_tables, feed};
 use chrono::Utc;
 use feed_api::FeedStrFields;
@@ -144,8 +145,8 @@ async fn superfeed_api_test(db: &DbConn) -> Result<(), DbErr> {
 }
 
 async fn article_api_test(db: &DbConn) -> Result<(), DbErr> {
-    let published = Utc::now();
-    let empty_related_articles = feed_api::get_articles(db, 1, None).await?;
+    let published = Utc::now() - chrono::TimeDelta::days(2);
+    let empty_related_articles = feed_api::get_articles(db, 1, ReadFilter::All, None, None).await?;
     assert_eq!(empty_related_articles.len(), 0);
 
     article_api::create_article(
@@ -154,7 +155,7 @@ async fn article_api_test(db: &DbConn) -> Result<(), DbErr> {
         "https://kottke.org/25/02/the-sutro-tower-in-3d".to_owned(),
         "The Sutro Tower in 3D".to_owned(),
         published,
-        published + chrono::TimeDelta::days(1),
+        published + chrono::TimeDelta::days(3), // lifespan 3 days, relative age (now - (now-2)) / 3 = 2/3 = 0.66
         false,
         "This is an amazingly realistic 3D model of San Francisco's Sutro 
             Tower that you can zoom, pan, fly through, and interact with."
@@ -163,14 +164,14 @@ async fn article_api_test(db: &DbConn) -> Result<(), DbErr> {
     )
     .await?;
 
-    let next_published = Utc::now();
+    let next_published = Utc::now() - chrono::TimeDelta::days(1);
     article_api::create_article(
         db,
         article_api::article_max_id(db).await? + 1,
         "https://kottke.org/25/03/dont-be-a-sucker".to_owned(),
         "Don't Be A Sucker".to_owned(),
         next_published,
-        next_published + chrono::TimeDelta::days(1),
+        next_published + chrono::TimeDelta::days(3), // lifespan 3 days, relative age (now - (now-1)) / 3 = 1/3 = 0.33
         false,
         "In 1945, the US Department of War (the precursor to the Dept of 
             Defense) produced this educational film on the destructive effects 
@@ -181,7 +182,7 @@ async fn article_api_test(db: &DbConn) -> Result<(), DbErr> {
     )
     .await?;
 
-    let new_related_articles = feed_api::get_articles(db, 1, None).await?;
+    let new_related_articles = feed_api::get_articles(db, 1, ReadFilter::All, None, None).await?;
     assert_eq!(new_related_articles.len(), 2);
     assert_eq!(new_related_articles[0].name, "Don't Be A Sucker".to_owned());
 
@@ -216,21 +217,21 @@ async fn tag_api_test(db: &DbConn) -> Result<(), DbErr> {
     let all_tags = tag_api::get_all_tags(db).await?;
     assert_eq!(all_tags.len(), 0);
 
-    tag_api::create_tag(
+    let _ = tag_api::create_tag(
         db,
         tag_api::tag_max_id(db).await? + 1,
         "Cool Stuff".to_owned(),
     )
     .await;
-    tag_api::create_tag(
+    let _ = tag_api::create_tag(
         db,
         tag_api::tag_max_id(db).await? + 1,
-        "For Later".to_owned(),
+        "Read Later".to_owned(),
     )
     .await;
-    tag_api::tag_article(db, 1, 1).await;
-    tag_api::tag_article(db, 2, 1).await;
-    tag_api::tag_article(db, 1, 2).await;
+    let _ = tag_api::tag_article(db, 1, 1).await;
+    let _ = tag_api::tag_article(db, 2, 1).await;
+    let _ = tag_api::tag_article(db, 1, 2).await;
 
     let all_tags = tag_api::get_all_tags(db).await?;
     assert_eq!(all_tags.len(), 2);
@@ -245,7 +246,7 @@ async fn tag_api_test(db: &DbConn) -> Result<(), DbErr> {
     let renamed_tag = tag_api::get_tag(db, 2).await?;
     assert_eq!(renamed_tag.name, "Read Later");
 
-    let cool_articles = tag_api::get_articles(db, 1).await?;
+    let cool_articles = tag_api::get_articles(db, 1, ReadFilter::All, None, None).await?;
     assert_eq!(cool_articles.len(), 2);
 
     let sutro_tags = article_api::get_tags(db, 1).await?;

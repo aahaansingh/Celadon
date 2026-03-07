@@ -9,7 +9,7 @@ mod undo;
 
 use undo::UndoStack;
 
-use sea_orm::{Database, DatabaseConnection};
+use sea_orm::Database;
 use std::fs::create_dir_all;
 use tauri::Manager;
 
@@ -64,6 +64,7 @@ fn main() {
             commands::feed::add_feed_to_superfeed,
             commands::feed::remove_feed_from_superfeed,
             commands::feed::delete_feed,
+            commands::feed::search_feeds,
             // superfeed commands
             commands::superfeed::get_superfeed,
             commands::superfeed::get_all_superfeeds,
@@ -71,6 +72,8 @@ fn main() {
             commands::superfeed::rename_superfeed,
             commands::superfeed::delete_superfeed,
             commands::superfeed::get_superfeed_feeds,
+            commands::superfeed::get_superfeed_articles,
+            commands::superfeed::search_superfeeds,
             // article commands
             commands::article::get_article,
             commands::article::get_article_by_url,
@@ -79,6 +82,8 @@ fn main() {
             commands::article::delete_article,
             commands::article::read_all_articles_in_feed,
             commands::article::get_article_tags,
+            commands::article::get_all_articles,
+            commands::article::search_articles,
             // tag commands
             commands::tag::get_tag,
             commands::tag::get_all_tags,
@@ -88,6 +93,7 @@ fn main() {
             commands::tag::tag_article,
             commands::tag::untag_article,
             commands::tag::get_tagged_articles,
+            commands::tag::search_tags,
             // syndication commands
             commands::syndication::add_feed,
             // undo commands

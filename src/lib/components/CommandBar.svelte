@@ -1,0 +1,317 @@
+<script lang="ts">
+	import {
+		Search,
+		ChevronLeft,
+		ChevronRight,
+		Plus,
+		Moon,
+		Sun,
+		Home,
+		Compass,
+		Hash,
+		Radio,
+		Layers
+	} from 'lucide-svelte';
+	import { nav } from '$lib/nav';
+	import { clsx, type ClassValue } from 'clsx';
+	import { twMerge } from 'tailwind-merge';
+	import { theme } from '$lib/theme';
+	import {
+		searchFeeds,
+		searchSuperfeeds,
+		searchTags,
+		type Feed,
+		type Superfeed,
+		type Tag,
+		type ReadFilter
+	} from '$lib/api';
+
+	function cn(...inputs: ClassValue[]) {
+		return twMerge(clsx(inputs));
+	}
+
+	let { onAdd, onToggleDarkMode, darkMode } = $props<{
+		onAdd: () => void;
+		onToggleDarkMode: () => void;
+		darkMode: boolean;
+	}>();
+
+	let searchQuery = $state('');
+	let suggestions = $state<{ id: number; name: string; type: 'feed' | 'superfeed' | 'tag' }[]>([]);
+	let showSuggestions = $state(false);
+	let selectedIndex = $state(-1);
+
+	async function handleInput(e: Event) {
+		const target = e.target as HTMLInputElement;
+		const value = target.value;
+		searchQuery = value;
+
+		if (value.startsWith('\\f:')) {
+			const q = value.slice(3);
+			const results = await searchFeeds(q);
+			suggestions = results.map((f: Feed) => ({ id: f.id, name: f.name, type: 'feed' as const }));
+			showSuggestions = suggestions.length > 0;
+		} else if (value.startsWith('\\s:')) {
+			const q = value.slice(3);
+			const results = await searchSuperfeeds(q);
+			suggestions = results.map((s: Superfeed) => ({
+				id: s.id,
+				name: s.name,
+				type: 'superfeed' as const
+			}));
+			showSuggestions = suggestions.length > 0;
+		} else if (value.startsWith('\\t:')) {
+			const q = value.slice(3);
+			const results = await searchTags(q);
+			suggestions = results.map((t: Tag) => ({ id: t.id, name: t.name, type: 'tag' as const }));
+			showSuggestions = suggestions.length > 0;
+		} else {
+			showSuggestions = false;
+			suggestions = [];
+		}
+		selectedIndex = -1;
+	}
+
+	function applySuggestion(suggestion: (typeof suggestions)[0]) {
+		let filter: ReadFilter = 'Unread';
+		// Check if there was a chained command already typed
+		if (searchQuery.includes('\\a')) filter = 'All';
+		if (searchQuery.includes('\\r')) filter = 'Read';
+
+		if (suggestion.type === 'feed') {
+			nav.push({ type: 'Feed', id: suggestion.id, name: suggestion.name, filter });
+		} else if (suggestion.type === 'superfeed') {
+			nav.push({ type: 'Superfeed', id: suggestion.id, name: suggestion.name, filter });
+		} else if (suggestion.type === 'tag') {
+			nav.push({ type: 'Tag', id: suggestion.id, name: suggestion.name, filter });
+		}
+
+		searchQuery = '';
+		showSuggestions = false;
+	}
+
+	function handleKeydown(e: KeyboardEvent) {
+		if (e.key === 'ArrowDown' && showSuggestions) {
+			e.preventDefault();
+			selectedIndex = (selectedIndex + 1) % suggestions.length;
+		} else if (e.key === 'ArrowUp' && showSuggestions) {
+			e.preventDefault();
+			selectedIndex = (selectedIndex - 1 + suggestions.length) % suggestions.length;
+		} else if (e.key === 'Enter') {
+			if (selectedIndex >= 0 && showSuggestions) {
+				applySuggestion(suggestions[selectedIndex]);
+			} else if (searchQuery.trim()) {
+				parseAndExecute(searchQuery.trim());
+				searchQuery = '';
+				showSuggestions = false;
+			}
+		} else if (e.key === 'Escape') {
+			showSuggestions = false;
+		}
+	}
+
+	function parseAndExecute(raw: string) {
+		let filter: ReadFilter = 'Unread';
+		let cleanQuery = raw;
+
+		if (raw.endsWith('\\a')) {
+			filter = 'All';
+			cleanQuery = raw.slice(0, -2).trim();
+		} else if (raw.endsWith('\\r')) {
+			filter = 'Read';
+			cleanQuery = raw.slice(0, -2).trim();
+		} else if (raw.endsWith('\\u')) {
+			filter = 'Unread';
+			cleanQuery = raw.slice(0, -2).trim();
+		}
+
+		if (cleanQuery.startsWith('\\f:')) {
+			const name = cleanQuery.slice(3);
+			nav.push({ type: 'Feed', name: `Feed: ${name}`, query: name, filter });
+		} else if (cleanQuery.startsWith('\\s:')) {
+			const name = cleanQuery.slice(3);
+			nav.push({ type: 'Superfeed', name: `Superfeed: ${name}`, query: name, filter });
+		} else if (cleanQuery.startsWith('\\t:')) {
+			const name = cleanQuery.slice(3);
+			nav.push({ type: 'Tag', name: `Tag: ${name}`, query: name, filter });
+		} else if (cleanQuery === '\\a' || cleanQuery === '\\r' || cleanQuery === '\\u') {
+			// Solo filter update
+			nav.updateFilter(filter);
+		} else {
+			nav.push({ type: 'Search', name: `Search: ${cleanQuery}`, query: cleanQuery, filter });
+		}
+	}
+
+	const breadcrumbs = $derived.by(() => {
+		const parts = ['Celadon'];
+		if (nav.current.type !== 'All') {
+			parts.push(nav.current.name);
+		}
+		if (nav.current.filter && nav.current.filter !== 'Unread') {
+			parts.push(`(${nav.current.filter})`);
+		}
+		return parts;
+	});
+</script>
+
+<div
+	class="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm"
+>
+	<div class="container mx-auto px-6 py-3">
+		<div class="flex items-center gap-6">
+			<!-- Logo & Breadcrumbs -->
+			<div class="flex items-center gap-4 flex-shrink-0">
+				<button
+					type="button"
+					class="relative group cursor-pointer"
+					onclick={() => nav.reset()}
+					aria-label="Home"
+				>
+					<div
+						class="absolute -inset-1 bg-gradient-to-tr from-primary to-celadon-light rounded-lg blur opacity-25 group-hover:opacity-50 transition duration-500"
+					></div>
+					<img
+						src="/src/lib/assets/logo.png"
+						alt="Celadon"
+						class="relative w-8 h-8 rounded-lg shadow-inner bg-background"
+					/>
+				</button>
+
+				<nav class="flex items-center text-sm font-heading text-muted-foreground whitespace-nowrap">
+					{#each breadcrumbs as part, i}
+						<span class={cn(i === breadcrumbs.length - 1 && 'text-foreground font-bold')}>
+							{part}
+						</span>
+						{#if i < breadcrumbs.length - 1}
+							<span class="mx-2 opacity-30">/</span>
+						{/if}
+					{/each}
+				</nav>
+			</div>
+
+			<!-- Navigation Controls -->
+			<div class="flex gap-1">
+				<button
+					onclick={() => nav.reset()}
+					class="p-2 hover:bg-muted rounded-lg transition-all text-muted-foreground hover:text-primary"
+					title="Home"
+				>
+					<Home class="w-4 h-4" />
+				</button>
+				<button
+					onclick={() => nav.back()}
+					disabled={!nav.canGoBack}
+					class="p-2 hover:bg-muted rounded-lg transition-all disabled:opacity-20"
+				>
+					<ChevronLeft class="w-4 h-4" />
+				</button>
+				<button
+					onclick={() => nav.forward()}
+					disabled={!nav.canGoForward}
+					class="p-2 hover:bg-muted rounded-lg transition-all disabled:opacity-20"
+				>
+					<ChevronRight class="w-4 h-4" />
+				</button>
+			</div>
+
+			<!-- Unified Search & Command Bar -->
+			<div class="flex-1 relative group">
+				<Search
+					class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors"
+				/>
+				<input
+					type="text"
+					placeholder="Search or enter command (\f:, \s:, \t:, \a, \r)..."
+					bind:value={searchQuery}
+					oninput={handleInput}
+					onkeydown={handleKeydown}
+					onfocus={() => (showSuggestions = searchQuery.startsWith('\\') && suggestions.length > 0)}
+					onblur={() => setTimeout(() => (showSuggestions = false), 200)}
+					class="w-full pl-10 pr-4 py-2 bg-muted/20 border border-primary/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all font-body text-sm placeholder:text-muted-foreground/50"
+				/>
+
+				<!-- Suggestions Dropdown -->
+				{#if showSuggestions && suggestions.length > 0}
+					<div
+						class="absolute top-full left-0 right-0 mt-2 bg-background/95 backdrop-blur-xl border border-border/50 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+					>
+						<div
+							class="p-2 border-b border-border/50 bg-muted/30 text-[10px] uppercase tracking-wider font-bold text-muted-foreground flex justify-between items-center"
+						>
+							<span>Suggestions</span>
+							<span class="flex gap-2">
+								<kbd class="px-1.5 py-0.5 rounded bg-background border border-border shadow-sm"
+									>↵</kbd
+								>
+								<kbd class="px-1.5 py-0.5 rounded bg-background border border-border shadow-sm"
+									>↑↓</kbd
+								>
+							</span>
+						</div>
+						<div class="max-h-64 overflow-y-auto py-1">
+							{#each suggestions as s, i}
+								<button
+									onclick={() => applySuggestion(s)}
+									class={cn(
+										'w-full px-4 py-2 text-left flex items-center gap-3 transition-colors',
+										i === selectedIndex ? 'bg-primary/10 text-primary' : 'hover:bg-muted'
+									)}
+								>
+									{#if s.type === 'feed'}
+										<Radio class="w-4 h-4 opacity-50" />
+									{:else if s.type === 'superfeed'}
+										<Layers class="w-4 h-4 opacity-50" />
+									{:else}
+										<Hash class="w-4 h-4 opacity-50" />
+									{/if}
+									<span class="text-sm font-body font-medium">{s.name}</span>
+									<span class="ml-auto text-[10px] opacity-40 uppercase tracking-tighter"
+										>{s.type}</span
+									>
+								</button>
+							{/each}
+						</div>
+					</div>
+				{/if}
+			</div>
+
+			<!-- Actions -->
+			<div class="flex items-center gap-3">
+				<button
+					onclick={onToggleDarkMode}
+					class="p-2 hover:bg-muted rounded-xl transition-all text-muted-foreground hover:text-foreground"
+					title="Toggle Dark Mode"
+				>
+					{#if darkMode}
+						<Sun class="w-4 h-4" />
+					{:else}
+						<Moon class="w-4 h-4" />
+					{/if}
+				</button>
+
+				<button
+					onclick={() => nav.push({ type: 'FeedsList', name: 'Discovery' })}
+					class="p-2 hover:bg-muted rounded-xl transition-all text-muted-foreground hover:text-primary"
+					title="Discovery"
+				>
+					<Compass class="w-5 h-5" />
+				</button>
+
+				<button
+					onclick={onAdd}
+					class="bg-primary hover:bg-celadon-dark text-white px-5 py-2 rounded-xl flex items-center gap-2 font-heading text-sm shadow-lg shadow-primary/20 active:scale-95 transition-all"
+				>
+					<Plus class="w-4 h-4" />
+					<span>Add</span>
+				</button>
+			</div>
+		</div>
+	</div>
+</div>
+
+<style>
+	/* Subtle animations for the dropdown */
+	:global(.animate-in) {
+		animation-fill-mode: forwards;
+	}
+</style>

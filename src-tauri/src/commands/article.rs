@@ -96,3 +96,32 @@ pub async fn get_article_tags(
         .await
         .map_err(|e| e.to_string())
 }
+
+use crate::models::article::ReadFilter;
+
+#[tauri::command]
+pub async fn get_all_articles(
+    state: State<'_, DatabaseConnection>,
+    filter: ReadFilter,
+    num: Option<u64>,
+    offset: Option<u64>,
+) -> Result<Vec<article::Model>, String> {
+    let db = state.inner();
+    article_api::get_all_articles_sorted_relative(db, filter, num, offset)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn search_articles(
+    state: State<'_, DatabaseConnection>,
+    query: String,
+    filter: ReadFilter,
+    num: Option<u64>,
+    offset: Option<u64>,
+) -> Result<Vec<article::Model>, String> {
+    let db = state.inner();
+    article_api::search_articles(db, query, filter, num, offset)
+        .await
+        .map_err(|e| e.to_string())
+}
