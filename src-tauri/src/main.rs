@@ -34,6 +34,10 @@ fn main() {
                 models::create_tables::create_tables(&db_conn)
                     .await
                     .expect("table creation failed");
+
+                // Ensure the default "All" superfeed (ID 1) exists
+                let _ = api::superfeed_api::create_superfeed(&db_conn, 1, "All".to_owned()).await;
+
                 api::article_api::clean_expired_articles(&db_conn)
                     .await
                     .unwrap_or(());

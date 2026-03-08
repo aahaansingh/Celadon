@@ -35,6 +35,8 @@
 	let isAddOpen = $state(false);
 	let endOfList = $state(false);
 	let sentinel = $state<HTMLElement>();
+	let errorMsg = $state<string | null>(null);
+	let addingFeed = $state(false);
 
 	const PAGE_SIZE = 50;
 
@@ -128,13 +130,16 @@
 
 	async function handleAddFeed(url: string) {
 		try {
-			loading = true;
+			addingFeed = true;
+			errorMsg = null;
 			await addFeed(url, 'News');
 			await loadData();
-		} catch (e) {
-			console.error(e);
+		} catch (e: unknown) {
+			const msg = e instanceof Error ? e.message : String(e);
+			errorMsg = `Failed to add feed: ${msg}`;
+			setTimeout(() => (errorMsg = null), 6000);
 		} finally {
-			loading = false;
+			addingFeed = false;
 		}
 	}
 
@@ -153,7 +158,26 @@
 		onAdd={() => (isAddOpen = true)}
 		onToggleDarkMode={() => theme.toggle()}
 		darkMode={theme.darkMode}
+		onRefresh={() => loadData()}
 	/>
+
+	<!-- Error toast -->
+	{#if errorMsg}
+		<div
+			class="fixed top-20 left-1/2 -translate-x-1/2 z-[300] bg-red-900/90 text-white text-sm px-5 py-3 rounded-xl shadow-2xl border border-red-700/50 backdrop-blur-md max-w-md text-center"
+		>
+			{errorMsg}
+		</div>
+	{/if}
+
+	<!-- Adding feed indicator -->
+	{#if addingFeed}
+		<div
+			class="fixed top-20 left-1/2 -translate-x-1/2 z-[300] bg-primary/90 text-primary-foreground text-sm px-5 py-3 rounded-xl shadow-2xl backdrop-blur-md"
+		>
+			Syndicating feed… this may take a moment.
+		</div>
+	{/if}
 
 	<main class="container mx-auto pb-10">
 		<ViewHeader />
@@ -176,7 +200,7 @@
 			</div>
 		{:else if articles.length === 0}
 			<div class="flex flex-col items-center justify-center h-64 text-muted-foreground/40">
-				<p class="font-body italic text-lg opacity-50">The garden is empty.</p>
+				<p class="font-body italic text-lg opacity-50">The cabinet is empty.</p>
 				<button
 					onclick={() => nav.reset()}
 					class="mt-4 text-xs uppercase tracking-widest hover:text-primary transition-colors"

@@ -38,7 +38,7 @@
 			onclick={(e) => e.stopPropagation()}
 		>
 			<div class="px-6 py-4 border-b border-border flex items-center justify-between">
-				<h2 class="font-heading font-bold uppercase tracking-widest text-sm">Grow the Garden</h2>
+				<h2 class="font-heading font-bold uppercase tracking-widest text-sm">Fill Your Cabinet</h2>
 				<button onclick={onClose} class="p-1 hover:bg-muted rounded-full transition-colors">
 					<X class="w-4 h-4" />
 				</button>

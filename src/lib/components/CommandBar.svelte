@@ -10,7 +10,8 @@
 		Compass,
 		Hash,
 		Radio,
-		Layers
+		Layers,
+		RotateCcw
 	} from 'lucide-svelte';
 	import { nav } from '$lib/nav.svelte';
 	import { clsx, type ClassValue } from 'clsx';
@@ -30,10 +31,11 @@
 		return twMerge(clsx(inputs));
 	}
 
-	let { onAdd, onToggleDarkMode, darkMode } = $props<{
+	let { onAdd, onToggleDarkMode, darkMode, onRefresh } = $props<{
 		onAdd: () => void;
 		onToggleDarkMode: () => void;
 		darkMode: boolean;
+		onRefresh: () => void;
 	}>();
 
 	let searchQuery = $state('');
@@ -125,7 +127,13 @@
 			cleanQuery = raw.slice(0, -2).trim();
 		}
 
-		if (cleanQuery.startsWith('\\f:')) {
+		if (cleanQuery === '\\f') {
+			nav.push({ type: 'FeedsList', name: 'All Feeds' });
+		} else if (cleanQuery === '\\s') {
+			nav.push({ type: 'SuperfeedsList', name: 'All Superfeeds' });
+		} else if (cleanQuery === '\\t') {
+			nav.push({ type: 'TagsList', name: 'All Tags' });
+		} else if (cleanQuery.startsWith('\\f:')) {
 			const name = cleanQuery.slice(3);
 			nav.push({ type: 'Feed', name: `Feed: ${name}`, query: name, filter });
 		} else if (cleanQuery.startsWith('\\s:')) {
@@ -277,6 +285,14 @@
 
 			<!-- Actions -->
 			<div class="flex items-center gap-3">
+				<button
+					onclick={onRefresh}
+					class="p-2 hover:bg-muted rounded-xl transition-all text-muted-foreground hover:text-foreground"
+					title="Refresh"
+				>
+					<RotateCcw class="w-4 h-4" />
+				</button>
+
 				<button
 					onclick={onToggleDarkMode}
 					class="p-2 hover:bg-muted rounded-xl transition-all text-muted-foreground hover:text-foreground"
