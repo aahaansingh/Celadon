@@ -1,6 +1,4 @@
-use sea_orm::{
-    error::*, ConnectionTrait, DatabaseConnection, DbConn, EntityTrait, ExecResult, Schema,
-};
+use sea_orm::{ConnectionTrait, DbConn, DbErr, EntityTrait, Schema};
 
 async fn create_table<E>(db: &DbConn, entity: E) -> Result<(), DbErr>
 where

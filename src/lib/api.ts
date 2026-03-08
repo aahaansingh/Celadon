@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/core';
 
 export interface Article {
     id: number;
@@ -47,13 +47,13 @@ export interface ArticleQuery {
 
 // Article Commands
 export const getArticles = (id: number, filter: ReadFilter, num?: number, offset?: number) =>
-    invoke<Article[]>('get_articles_by_feed', { id, filter, num, offset });
+    invoke<Article[]>('get_articles', { id, filter, num, offset });
 
 export const getSuperfeedArticles = (id: number, filter: ReadFilter, num?: number, offset?: number) =>
-    invoke<Article[]>('get_articles_by_superfeed', { id, filter, num, offset });
+    invoke<Article[]>('get_superfeed_articles', { id, filter, num, offset });
 
 export const getTagArticles = (id: number, filter: ReadFilter, num?: number, offset?: number) =>
-    invoke<Article[]>('get_articles_by_tag', { id, filter, num, offset });
+    invoke<Article[]>('get_tagged_articles', { id, filter, num, offset });
 
 export const getAllArticles = (filter: ReadFilter, num?: number, offset?: number) =>
     invoke<Article[]>('get_all_articles', { filter, num, offset });

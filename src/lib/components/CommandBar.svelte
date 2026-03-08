@@ -12,10 +12,10 @@
 		Radio,
 		Layers
 	} from 'lucide-svelte';
-	import { nav } from '$lib/nav';
+	import { nav } from '$lib/nav.svelte';
 	import { clsx, type ClassValue } from 'clsx';
 	import { twMerge } from 'tailwind-merge';
-	import { theme } from '$lib/theme';
+	import { theme } from '$lib/theme.svelte';
 	import {
 		searchFeeds,
 		searchSuperfeeds,
@@ -171,7 +171,7 @@
 						class="absolute -inset-1 bg-gradient-to-tr from-primary to-celadon-light rounded-lg blur opacity-25 group-hover:opacity-50 transition duration-500"
 					></div>
 					<img
-						src="/src/lib/assets/logo.png"
+						src="/logo.png"
 						alt="Celadon"
 						class="relative w-8 h-8 rounded-lg shadow-inner bg-background"
 					/>

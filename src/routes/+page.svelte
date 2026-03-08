@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, untrack } from 'svelte';
-	import { nav } from '$lib/nav';
-	import { theme } from '$lib/theme';
+	import { nav } from '$lib/nav.svelte';
+	import { theme } from '$lib/theme.svelte';
 	import {
 		getArticles,
 		getSuperfeedArticles,

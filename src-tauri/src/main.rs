@@ -22,7 +22,7 @@ fn main() {
                 create_dir_all(&app_data_dir).unwrap();
             }
             let db_path = app_data_dir.join("celadon.db");
-            let db_url = format!("sqlite:{}", db_path.to_str().unwrap());
+            let db_url = format!("sqlite://{}?mode=rwc", db_path.to_str().unwrap());
 
             let db_conn = tauri::async_runtime::block_on(async {
                 Database::connect(&db_url)

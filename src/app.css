@@ -4,32 +4,124 @@
   --color-celadon: #ace1af;
   --color-celadon-dark: #70a37f;
   --color-celadon-light: #c8e6c9;
-  
+
   --font-body: "Alegreya", serif;
   --font-heading: "Libre Baskerville", serif;
 
   --radius-bevel: 12px;
 }
 
+/* ── Light Mode Tokens ── */
 :root {
+  --background: #f8faf8;
+  --foreground: #1a231c;
+
+  --muted: #edf3ee;
+  --muted-foreground: #5a7060;
+
+  --primary: #70a37f;
+  --primary-foreground: #ffffff;
+
+  --border: rgba(112, 163, 127, 0.2);
+
   --celadon: var(--color-celadon);
   --celadon-dark: var(--color-celadon-dark);
 }
 
-body {
-  @apply font-body bg-background text-foreground antialiased;
-  /* Alegreya scale-up: slightly larger default to ensure readability */
-  font-size: 1.1rem;
+/* ── Dark Mode Tokens ── */
+.dark {
+  --background: #1c2e21;
+  --foreground: #f0faf2;
+
+  --muted: #243b2a;
+  --muted-foreground: #ace1af;
+  /* celadon as the muted text — readable on dark green */
+
+  --primary: #ace1af;
+  /* light celadon for buttons/accents */
+  --primary-foreground: #1c2e21;
+  /* dark bg as button text */
+
+  --border: rgba(172, 225, 175, 0.15);
 }
 
-h1, h2, h3, h4, h5, h6 {
-  @apply font-heading tracking-tight;
-  /* Libre Baskerville scale-down: it's naturally large, so we normalize it */
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+  /* Alegreya scale-up: slightly larger default to ensure readability */
+  font-size: 1.1rem;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
   line-height: 1.2;
 }
 
 .beveled {
   border-radius: var(--radius-bevel);
+}
+
+/* Tailwind utility bridge — maps CSS vars to Tailwind classes */
+@layer utilities {
+  .bg-background {
+    background-color: var(--background);
+  }
+
+  .bg-muted {
+    background-color: var(--muted);
+  }
+
+  .bg-primary {
+    background-color: var(--primary);
+  }
+
+  .text-foreground {
+    color: var(--foreground);
+  }
+
+  .text-muted-foreground {
+    color: var(--muted-foreground);
+  }
+
+  .text-primary {
+    color: var(--primary);
+  }
+
+  .text-primary-foreground {
+    color: var(--primary-foreground);
+  }
+
+  .text-white {
+    color: #ffffff;
+  }
+
+  .border-border {
+    border-color: var(--border);
+  }
+
+  .border-primary {
+    border-color: var(--primary);
+  }
+
+  .hover\:bg-muted:hover {
+    background-color: var(--muted);
+  }
+
+  .hover\:text-primary:hover {
+    color: var(--primary);
+  }
+
+  .hover\:bg-celadon-dark:hover {
+    background-color: var(--color-celadon-dark);
+  }
 }
 
 /* Scrollbar styling for a premium feel */
@@ -39,9 +131,15 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-transparent;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-muted-foreground/20 rounded-full hover:bg-muted-foreground/40 transition-colors;
+  background-color: var(--muted-foreground);
+  opacity: 0.2;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  opacity: 0.4;
 }

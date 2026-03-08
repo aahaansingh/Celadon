@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { nav } from '$lib/nav';
+	import { nav } from '$lib/nav.svelte';
 	import { Filter } from 'lucide-svelte';
 </script>
 
