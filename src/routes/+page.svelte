@@ -19,6 +19,7 @@
 		addFeed,
 		addFeedToSuperfeed,
 		removeFeedFromSuperfeed,
+		refreshAllFeeds,
 		createSuperfeed,
 		createTag,
 		tagArticle,
@@ -170,7 +171,23 @@
 			{ threshold: 0.1 }
 		);
 
-		return () => observer.disconnect();
+		// Background refresh every hour: fetch new articles from all feeds; UI Refresh button only re-reads from DB
+		const hourMs = 60 * 60 * 1000;
+		const intervalId = setInterval(() => {
+			refreshAllFeeds()
+				.then(() => loadData())
+				.catch(() => {});
+		}, hourMs);
+
+		// Also refresh once at startup so new articles appear without waiting for the first hour
+		refreshAllFeeds()
+			.then(() => loadData())
+			.catch(() => {});
+
+		return () => {
+			observer.disconnect();
+			clearInterval(intervalId);
+		};
 	});
 
 	$effect(() => {

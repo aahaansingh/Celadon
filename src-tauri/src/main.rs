@@ -105,6 +105,7 @@ fn main() {
             commands::tag::search_tags,
             // syndication commands
             commands::syndication::add_feed,
+            commands::syndication::refresh_all_feeds,
             // undo commands
             commands::undo::undo,
             commands::undo::clear_undo,

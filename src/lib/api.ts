@@ -126,3 +126,5 @@ export const untagArticle = (tagId: number, articleId: number) =>
 // Syndication
 export const addFeed = (url: string, feedType: string, superfeedId: number = 1) =>
     invoke<void>('add_feed', { url, superfeedId, feedType });
+/** Re-fetch all feeds and fetch new articles. Called by the hourly background; UI Refresh button should only re-read from DB (loadData). */
+export const refreshAllFeeds = () => invoke<void>('refresh_all_feeds');

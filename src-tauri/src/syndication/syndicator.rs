@@ -8,6 +8,7 @@ use reqwest;
 use rss::validation::Validate;
 use rss::Channel;
 use sea_orm::DbConn;
+use sea_orm::DbErr;
 
 pub enum SyndicationFeed {
     Rss(Channel),
@@ -210,7 +211,7 @@ pub async fn update_feed(
                             db,
                             article_api::article_max_id(db).await? + 1,
                             article_url,
-                            feed_inner.title.value.clone(),
+                            article.title.value.clone(),
                             published,
                             expiry_at,
                             already_expired,
@@ -225,6 +226,20 @@ pub async fn update_feed(
                     Some(_) => {}
                 }
             }
+        }
+    }
+    Ok(())
+}
+
+/// Re-fetch all feeds from their URLs and insert any new articles. Used by the hourly background
+/// task; one failing feed does not stop the rest.
+pub async fn refresh_all_feeds(db: &DbConn) -> Result<(), DbErr> {
+    let feeds = feed_api::get_all_feeds(db).await?;
+    const ALL_SUPERFEED_ID: i32 = 1;
+    for f in feeds {
+        if let Err(e) = url_to_feed(db, f.url.clone(), ALL_SUPERFEED_ID, f.feed_type.clone()).await
+        {
+            eprintln!("refresh_all_feeds: feed id {} ({}) failed: {}", f.id, f.url, e);
         }
     }
     Ok(())

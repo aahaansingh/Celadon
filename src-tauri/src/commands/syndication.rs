@@ -15,3 +15,11 @@ pub async fn add_feed(
         .await
         .map_err(|e| e.to_string())
 }
+
+/// Re-fetch all feeds from their URLs and insert new articles. Used by the hourly background task;
+/// the UI refresh button should only re-read from the DB (loadData).
+#[tauri::command]
+pub async fn refresh_all_feeds(state: State<'_, DatabaseConnection>) -> Result<(), String> {
+    let db = state.inner();
+    syndicator::refresh_all_feeds(db).await.map_err(|e| e.to_string())
+}
