@@ -1,7 +1,9 @@
 <script lang="ts">
 	import type { Article } from '$lib/api';
-	import { X, ExternalLink, RefreshCw } from 'lucide-svelte';
-	import { fade, slide } from 'svelte/transition';
+	import { openInBrowser } from '$lib/api';
+	import { sanitizeHtml } from '$lib/sanitizeHtml';
+	import { X, ExternalLink } from 'lucide-svelte';
+	import { fade } from 'svelte/transition';
 
 	let { article, onClose } = $props<{
 		article: Article | null;
@@ -9,6 +11,7 @@
 	}>();
 
 	let mode = $state<'simple' | 'full'>('simple');
+	let simpleContent = $derived(article?.description ? sanitizeHtml(article.description) : '');
 </script>
 
 {#if article}
@@ -36,7 +39,7 @@
 				</button>
 
 				<button
-					onclick={() => window.open(article.url, '_blank')}
+					onclick={() => openInBrowser(article.url)}
 					class="p-2 hover:bg-muted rounded-xl transition-all"
 					title="Open in Browser"
 				>
@@ -48,14 +51,25 @@
 		<!-- Content Area -->
 		<div class="flex-1 overflow-auto">
 			{#if mode === 'simple'}
-				<article class="max-w-3xl mx-auto px-6 py-12 prose dark:prose-invert">
-					<p class="text-lg leading-relaxed text-foreground/80 whitespace-pre-wrap">
-						{article.description || 'No summary available.'}
-					</p>
+				<article class="max-w-3xl mx-auto px-6 py-12 prose dark:prose-invert prose-p:text-lg prose-p:leading-relaxed prose-p:text-foreground/80">
+					{#if simpleContent}
+						{@html simpleContent}
+					{:else}
+						<p class="text-lg leading-relaxed text-foreground/80">No summary available.</p>
+					{/if}
 				</article>
 			{:else}
-				<div class="w-full h-full bg-white">
-					<iframe src={article.url} title={article.name} class="w-full h-full border-none"></iframe>
+				<div class="w-full h-full flex flex-col bg-white">
+					<iframe src={article.url} title={article.name} class="w-full flex-1 min-h-0 border-none"></iframe>
+					<div class="px-4 py-2 bg-muted/50 border-t border-border text-center text-xs text-muted-foreground font-body">
+						If the page doesn&apos;t appear, this site may block embedding.
+						<button
+							onclick={() => openInBrowser(article.url)}
+							class="ml-2 underline hover:text-primary"
+						>
+							Open in browser
+						</button>
+					</div>
 				</div>
 			{/if}
 		</div>

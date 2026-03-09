@@ -5,6 +5,10 @@ use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use sea_orm::{InsertResult, QueryFilter, QueryOrder, QuerySelect, Set};
 
+// Sort by "urgency" ratio (now-published)/(expiry-published). When expiry_at <= published
+// the ratio would be NULL/division-by-zero; use 1.0 so those rows sort at end.
+const RELATIVE_SORT: &str = "CASE WHEN (strftime('%s', expiry_at) - strftime('%s', published)) > 0 THEN (CAST(strftime('%s', 'now') - strftime('%s', published) AS FLOAT) / CAST(strftime('%s', expiry_at) - strftime('%s', published) AS FLOAT)) ELSE 1.0 END";
+
 fn apply_read_filter<E>(query: Select<E>, filter: ReadFilter) -> Select<E>
 where
     E: EntityTrait,
@@ -129,6 +133,17 @@ pub async fn cleanup_deleted_articles(db: &DbConn) -> Result<(), DbErr> {
     Ok(())
 }
 
+/// Backfill expiry_at for articles where expiry_at <= published (e.g. old data) so the relative sort works.
+pub async fn backfill_expiry_at(db: &DbConn) -> Result<(), DbErr> {
+    use sea_orm::ConnectionTrait;
+    db.execute(sea_orm::Statement::from_string(
+        db.get_database_backend(),
+        "UPDATE Article SET expiry_at = datetime(published, '+1 day') WHERE deleted = 0 AND expiry_at <= published".to_owned(),
+    ))
+    .await?;
+    Ok(())
+}
+
 pub async fn clean_expired_articles(db: &DbConn) -> Result<(), DbErr> {
     let _update_result = Article::update_many()
         .col_expr(article::Column::Read, Expr::value(true))
@@ -163,7 +178,7 @@ pub async fn get_all_articles_sorted_relative(
 
     query = apply_read_filter(query, filter);
 
-    query = query.order_by_asc(Expr::cust("CAST(strftime('%s', 'now') - strftime('%s', published) AS FLOAT) / CAST(strftime('%s', expiry_at) - strftime('%s', published) AS FLOAT)"));
+    query = query.order_by_asc(Expr::cust(RELATIVE_SORT));
 
     if let Some(lim) = num {
         query = query.limit(lim);
@@ -192,7 +207,7 @@ pub async fn search_articles(
 
     query = apply_read_filter(query, filter);
 
-    query = query.order_by_asc(Expr::cust("CAST(strftime('%s', 'now') - strftime('%s', published) AS FLOAT) / CAST(strftime('%s', expiry_at) - strftime('%s', published) AS FLOAT)"));
+    query = query.order_by_asc(Expr::cust(RELATIVE_SORT));
 
     if let Some(lim) = num {
         query = query.limit(lim);

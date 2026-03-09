@@ -46,6 +46,29 @@ pub async fn update_feed_name(
 }
 
 #[tauri::command]
+pub async fn update_feed_type(
+    state: State<'_, DatabaseConnection>,
+    id: i32,
+    feed_type: feed::FeedType,
+) -> Result<(), String> {
+    let db = state.inner();
+    feed_api::update_feed_type(db, id, feed_type)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub async fn get_superfeed_ids_for_feed(
+    state: State<'_, DatabaseConnection>,
+    feed_id: i32,
+) -> Result<Vec<i32>, String> {
+    let db = state.inner();
+    feed_api::get_superfeed_ids_for_feed(db, feed_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 pub async fn add_feed_to_superfeed(
     state: State<'_, DatabaseConnection>,
     feed_id: i32,

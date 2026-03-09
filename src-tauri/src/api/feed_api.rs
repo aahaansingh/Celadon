@@ -119,6 +119,18 @@ pub async fn update_feed_dt(
     Ok(())
 }
 
+pub async fn update_feed_type(
+    db: &DbConn,
+    id: i32,
+    feed_type: feed::FeedType,
+) -> Result<(), DbErr> {
+    let feed_model = get_feed(db, id).await?;
+    let mut feed_active: feed::ActiveModel = feed_model.into();
+    feed_active.feed_type = Set(feed_type);
+    let _updated_feed_model = feed_active.update(db).await?;
+    Ok(())
+}
+
 pub async fn add_feed_to_superfeed(
     db: &DbConn,
     feed_id: i32,
@@ -130,6 +142,14 @@ pub async fn add_feed_to_superfeed(
     };
     FeedSuperfeed::insert(relation).exec(db).await?;
     Ok(())
+}
+
+pub async fn get_superfeed_ids_for_feed(db: &DbConn, feed_id: i32) -> Result<Vec<i32>, DbErr> {
+    let rows = feed_superfeed::Entity::find()
+        .filter(feed_superfeed::Column::FeedId.eq(feed_id))
+        .all(db)
+        .await?;
+    Ok(rows.into_iter().map(|r| r.superfeed_id).collect())
 }
 
 pub async fn remove_feed_from_superfeed(
@@ -204,7 +224,7 @@ pub async fn get_articles(
         ReadFilter::All => {}
     }
 
-    query = query.order_by_asc(Expr::cust("CAST(strftime('%s', 'now') - strftime('%s', published) AS FLOAT) / CAST(strftime('%s', expiry_at) - strftime('%s', published) AS FLOAT)"));
+    query = query.order_by_asc(Expr::cust("CASE WHEN (strftime('%s', expiry_at) - strftime('%s', published)) > 0 THEN (CAST(strftime('%s', 'now') - strftime('%s', published) AS FLOAT) / CAST(strftime('%s', expiry_at) - strftime('%s', published) AS FLOAT)) ELSE 1.0 END"));
 
     if let Some(lim) = num {
         query = query.limit(lim);

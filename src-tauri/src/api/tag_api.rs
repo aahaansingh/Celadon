@@ -149,7 +149,7 @@ pub async fn get_articles(
         ReadFilter::All => {}
     }
 
-    query = query.order_by_asc(Expr::cust("CAST(strftime('%s', 'now') - strftime('%s', published) AS FLOAT) / CAST(strftime('%s', expiry_at) - strftime('%s', published) AS FLOAT)"));
+    query = query.order_by_asc(Expr::cust("CASE WHEN (strftime('%s', expiry_at) - strftime('%s', published)) > 0 THEN (CAST(strftime('%s', 'now') - strftime('%s', published) AS FLOAT) / CAST(strftime('%s', expiry_at) - strftime('%s', published) AS FLOAT)) ELSE 1.0 END"));
 
     if let Some(lim) = num {
         query = query.limit(lim);

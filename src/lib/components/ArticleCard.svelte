@@ -1,21 +1,23 @@
 <script lang="ts">
 	import type { Article, Feed } from '$lib/api';
+	import { openInBrowser } from '$lib/api';
+	import { decodeHtmlEntities } from '$lib/sanitizeHtml';
 	import { Clock, CheckCircle2, Circle, Tag, ExternalLink } from 'lucide-svelte';
-	import { onMount } from 'svelte';
 
-	let { article, feed, onToggleRead, onAddTag, onShowFeed, onClick } = $props<{
+	let { article, feed, onToggleRead, onAddTag, onShowFeed, onClick, onContextMenu } = $props<{
 		article: Article;
 		feed?: Feed;
 		onToggleRead: () => void;
 		onAddTag: () => void;
 		onShowFeed: () => void;
 		onClick: () => void;
+		onContextMenu?: (e: MouseEvent) => void;
 	}>();
 
 	const typeColors: Record<string, string> = {
 		News: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
 		Article: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
-		Essay: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
+		Essay: 'bg-purple-200 text-purple-900 dark:bg-purple-900/30 dark:text-purple-300'
 	};
 
 	const typeLabels: Record<string, string> = {
@@ -35,19 +37,37 @@
 		return `${Math.floor(diffInSeconds / 86400)}d ago`;
 	}
 
+	/** Strip HTML tags and take first ~100 chars for preview; decode entities. */
+	function previewText(html: string | null | undefined): string {
+		if (!html || !html.trim()) return '';
+		const div = typeof document !== 'undefined' ? document.createElement('div') : null;
+		if (!div) {
+			const stripped = html.replace(/<[^>]+>/g, '').trim();
+			return decodeHtmlEntities(stripped).slice(0, 100) + (stripped.length > 100 ? '…' : '');
+		}
+		div.innerHTML = html;
+		const text = (div.textContent || div.innerText || '').replace(/\s+/g, ' ').trim();
+		return decodeHtmlEntities(text).slice(0, 100) + (text.length > 100 ? '…' : '');
+	}
+
 	let timeAgo = $derived(getTimeAgo(article.published));
+	let descriptionPreview = $derived(previewText(article.description));
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	onclick={onClick}
-	class="bg-card border border-border beveled p-4 cursor-pointer hover:shadow-lg transition-all duration-300 h-[220px] flex flex-col justify-between group relative overflow-hidden"
+	oncontextmenu={(e) => {
+		e.preventDefault();
+		onContextMenu?.(e);
+	}}
+	class="bg-card border border-border beveled p-4 cursor-pointer hover:shadow-lg transition-all duration-300 min-h-[260px] flex flex-col justify-between group relative overflow-hidden"
 >
-	<div class="flex-1 overflow-hidden">
-		<div class="flex items-start justify-between gap-2 mb-2">
+	<div class="flex-1 overflow-hidden flex flex-col gap-2">
+		<div class="flex items-start justify-between gap-2">
 			<h3
-				class="line-clamp-3 text-sm font-heading leading-tight group-hover:text-primary transition-colors"
+				class="line-clamp-3 text-sm font-heading leading-snug pb-0.5 min-h-[2.85rem] group-hover:text-primary transition-colors"
 			>
 				{article.name}
 			</h3>
@@ -65,6 +85,12 @@
 				{/if}
 			</button>
 		</div>
+
+		{#if descriptionPreview}
+			<p class="text-xs text-muted-foreground font-body italic line-clamp-2">
+				{descriptionPreview}
+			</p>
+		{/if}
 
 		<div class="space-y-1.5 text-xs text-muted-foreground font-body">
 			<p class="truncate font-medium">{feed?.name || 'Unknown Feed'}</p>
@@ -93,7 +119,7 @@
 		<button
 			onclick={(e) => {
 				e.stopPropagation();
-				window.open(article.url, '_blank');
+				openInBrowser(article.url);
 			}}
 			class="text-muted-foreground hover:text-primary transition-colors"
 		>

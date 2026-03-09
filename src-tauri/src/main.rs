@@ -44,6 +44,9 @@ fn main() {
                 api::article_api::cleanup_deleted_articles(&db_conn)
                     .await
                     .unwrap_or(());
+                api::article_api::backfill_expiry_at(&db_conn)
+                    .await
+                    .unwrap_or(());
                 api::feed_api::cleanup_deleted_feeds(&db_conn)
                     .await
                     .unwrap_or(());
@@ -62,8 +65,10 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::feed::get_feed,
             commands::feed::get_all_feeds,
+            commands::feed::get_superfeed_ids_for_feed,
             commands::feed::get_feed_by_url,
             commands::feed::update_feed_name,
+            commands::feed::update_feed_type,
             commands::feed::get_articles,
             commands::feed::add_feed_to_superfeed,
             commands::feed::remove_feed_from_superfeed,

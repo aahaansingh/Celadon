@@ -7,7 +7,6 @@
 		Moon,
 		Sun,
 		Home,
-		Compass,
 		Hash,
 		Radio,
 		Layers,
@@ -116,6 +115,34 @@
 		let filter: ReadFilter = 'Unread';
 		let cleanQuery = raw;
 
+		// Prefix form: \a:query or \r:query or \u:query
+		if (raw.startsWith('\\a:')) {
+			filter = 'All';
+			cleanQuery = raw.slice(3).trim();
+			if (cleanQuery) {
+				nav.push({ type: 'Search', name: `Search: ${cleanQuery}`, query: cleanQuery, filter });
+				return;
+			}
+			cleanQuery = '\\a';
+		} else if (raw.startsWith('\\r:')) {
+			filter = 'Read';
+			cleanQuery = raw.slice(3).trim();
+			if (cleanQuery) {
+				nav.push({ type: 'Search', name: `Search: ${cleanQuery}`, query: cleanQuery, filter });
+				return;
+			}
+			cleanQuery = '\\r';
+		} else if (raw.startsWith('\\u:')) {
+			filter = 'Unread';
+			cleanQuery = raw.slice(3).trim();
+			if (cleanQuery) {
+				nav.push({ type: 'Search', name: `Search: ${cleanQuery}`, query: cleanQuery, filter });
+				return;
+			}
+			cleanQuery = '\\u';
+		}
+
+		// Suffix form: [query]\a or [query]\r or [query]\u
 		if (raw.endsWith('\\a')) {
 			filter = 'All';
 			cleanQuery = raw.slice(0, -2).trim();
@@ -306,11 +333,11 @@
 				</button>
 
 				<button
-					onclick={() => nav.push({ type: 'FeedsList', name: 'Discovery' })}
+					onclick={() => nav.push({ type: 'SuperfeedsList', name: 'Discovery' })}
 					class="p-2 hover:bg-muted rounded-xl transition-all text-muted-foreground hover:text-primary"
 					title="Discovery"
 				>
-					<Compass class="w-5 h-5" />
+					<Layers class="w-5 h-5" />
 				</button>
 
 				<button

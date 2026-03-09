@@ -7,11 +7,19 @@
 		getSuperfeedArticles,
 		getTagArticles,
 		getAllFeeds,
+		getAllSuperfeeds,
+		getAllTags,
 		getAllArticles,
 		searchArticles,
+		searchFeeds,
+		searchSuperfeeds,
+		searchTags,
 		readArticle,
+		unreadArticle,
 		addFeed,
+		addFeedToSuperfeed,
 		createSuperfeed,
+		createTag,
 		type Article,
 		type Feed,
 		type Superfeed,
@@ -25,10 +33,16 @@
 	import SuperfeedCard from '$lib/components/SuperfeedCard.svelte';
 	import TagCard from '$lib/components/TagCard.svelte';
 	import AddDialog from '$lib/components/AddDialog.svelte';
+	import ContextMenu from '$lib/components/ContextMenu.svelte';
+	import FeedSettingsModal from '$lib/components/FeedSettingsModal.svelte';
+	import SuperfeedSettingsModal from '$lib/components/SuperfeedSettingsModal.svelte';
+	import TagSettingsModal from '$lib/components/TagSettingsModal.svelte';
 
 	let articles = $state<Article[]>([]);
 	let feeds = $state<Record<number, Feed>>({});
 	let allFeeds = $state<Feed[]>([]);
+	let allSuperfeeds = $state<Superfeed[]>([]);
+	let allTags = $state<TagType[]>([]);
 	let loading = $state(true);
 	let loadingMore = $state(false);
 	let selectedArticle = $state<Article | null>(null);
@@ -37,6 +51,24 @@
 	let sentinel = $state<HTMLElement>();
 	let errorMsg = $state<string | null>(null);
 	let addingFeed = $state(false);
+	let articleLoadError = $state<string | null>(null);
+	let contextMenu = $state<{
+		x: number;
+		y: number;
+		type: 'feed';
+		feedId: number;
+	} | {
+		x: number;
+		y: number;
+		type: 'article';
+		article: Article;
+	} | null>(null);
+	let settingsTarget = $state<
+		| { type: 'feed'; feed: Feed }
+		| { type: 'superfeed'; superfeed: Superfeed }
+		| { type: 'tag'; tag: TagType }
+		| null
+	>(null);
 
 	const PAGE_SIZE = 50;
 
@@ -47,7 +79,9 @@
 			loading = true;
 			articles = [];
 			endOfList = false;
-			nav.current.offset = 0;
+			articleLoadError = null;
+			// Don't mutate nav.current here — can re-trigger effect and race with article load.
+			// offset is already 0 from initial state / push() / updateFilter().
 		}
 
 		try {
@@ -84,8 +118,20 @@
 			} else {
 				articles = newArticles;
 			}
+
+			// Load list data for FeedsList/SuperfeedsList/TagsList views after articles so it can't block or clear articles
+			if (!append) {
+				getAllSuperfeeds()
+					.then((v) => (allSuperfeeds = v))
+					.catch((e) => console.error('Failed to load superfeeds:', e));
+				getAllTags()
+					.then((v) => (allTags = v))
+					.catch((e) => console.error('Failed to load tags:', e));
+			}
 		} catch (e) {
-			console.error(e);
+			const msg = e instanceof Error ? e.message : String(e);
+			articleLoadError = msg;
+			console.error('Failed to load articles:', e);
 		} finally {
 			loading = false;
 			loadingMore = false;
@@ -128,11 +174,29 @@
 		article.read = true;
 	}
 
-	async function handleAddFeed(url: string) {
+	async function handleToggleRead(article: Article) {
+		const newRead = !article.read;
+		try {
+			if (newRead) {
+				await readArticle(article.id);
+			} else {
+				await unreadArticle(article.id);
+			}
+			// Update local state; do not remove from grid until view changes
+			articles = articles.map((a) => (a.id === article.id ? { ...a, read: newRead } : a));
+			if (selectedArticle?.id === article.id) {
+				selectedArticle = { ...selectedArticle, read: newRead };
+			}
+		} catch (e) {
+			console.error(e);
+		}
+	}
+
+	async function handleAddFeed(url: string, feedType: 'News' | 'Article' | 'Essay' = 'News') {
 		try {
 			addingFeed = true;
 			errorMsg = null;
-			await addFeed(url, 'News');
+			await addFeed(url, feedType);
 			await loadData();
 		} catch (e: unknown) {
 			const msg = e instanceof Error ? e.message : String(e);
@@ -146,6 +210,24 @@
 	async function handleCreateSuperfeed(name: string) {
 		try {
 			await createSuperfeed(name);
+			await loadData();
+		} catch (e) {
+			console.error(e);
+		}
+	}
+
+	async function handleCreateTag(name: string) {
+		try {
+			await createTag(name);
+			await loadData();
+		} catch (e) {
+			console.error(e);
+		}
+	}
+
+	async function handleAddFeedToSuperfeed(feedId: number, superfeedId: number) {
+		try {
+			await addFeedToSuperfeed(feedId, superfeedId);
 			await loadData();
 		} catch (e) {
 			console.error(e);
@@ -194,19 +276,55 @@
 					<FeedCard
 						feed={f}
 						onClick={() => nav.push({ type: 'Feed', id: f.id, name: f.name })}
-						onSettings={() => {}}
+						onSettings={() => (settingsTarget = { type: 'feed', feed: f })}
+						onContextMenu={(e) => {
+							contextMenu = { x: e.clientX, y: e.clientY, type: 'feed', feedId: f.id };
+						}}
+					/>
+				{/each}
+			</div>
+		{:else if nav.current.type === 'SuperfeedsList'}
+			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-6">
+				{#each allSuperfeeds as s (s.id)}
+					<SuperfeedCard
+						superfeed={s}
+						onClick={() => nav.push({ type: 'Superfeed', id: s.id, name: s.name })}
+						onSettings={() => (settingsTarget = { type: 'superfeed', superfeed: s })}
+					/>
+				{/each}
+			</div>
+		{:else if nav.current.type === 'TagsList'}
+			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-6">
+				{#each allTags as t (t.id)}
+					<TagCard
+						tag={t}
+						onClick={() => nav.push({ type: 'Tag', id: t.id, name: t.name })}
+						onSettings={() => (settingsTarget = { type: 'tag', tag: t })}
 					/>
 				{/each}
 			</div>
 		{:else if articles.length === 0}
 			<div class="flex flex-col items-center justify-center h-64 text-muted-foreground/40">
-				<p class="font-body italic text-lg opacity-50">The cabinet is empty.</p>
-				<button
-					onclick={() => nav.reset()}
-					class="mt-4 text-xs uppercase tracking-widest hover:text-primary transition-colors"
-				>
-					Return Home
-				</button>
+				{#if articleLoadError}
+					<p class="font-body text-lg text-red-600 dark:text-red-400 mb-2">
+						Could not load articles: {articleLoadError}
+					</p>
+					<p class="text-sm opacity-70 mb-4">Check the browser console (F12 → Console) for details.</p>
+					<button
+						onclick={() => { articleLoadError = null; loadData(); }}
+						class="px-4 py-2 bg-primary text-primary-foreground rounded-xl font-heading text-sm"
+					>
+						Retry
+					</button>
+				{:else}
+					<p class="font-body italic text-lg opacity-50">The cabinet is empty.</p>
+					<button
+						onclick={() => nav.reset()}
+						class="mt-4 text-xs uppercase tracking-widest hover:text-primary transition-colors"
+					>
+						Return Home
+					</button>
+				{/if}
 			</div>
 		{:else}
 			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-6">
@@ -215,7 +333,7 @@
 						{article}
 						feed={feeds[article.feed]}
 						onClick={() => openArticle(article)}
-						onToggleRead={() => {}}
+						onToggleRead={() => handleToggleRead(article)}
 						onAddTag={() => {}}
 						onShowFeed={() =>
 							nav.push({
@@ -223,6 +341,14 @@
 								id: article.feed,
 								name: feeds[article.feed]?.name || 'Feed'
 							})}
+						onContextMenu={(e) => {
+							contextMenu = {
+								x: e.clientX,
+								y: e.clientY,
+								type: 'article',
+								article
+							};
+						}}
 					/>
 				{/each}
 			</div>
@@ -246,11 +372,73 @@
 
 	<ArticleViewer article={selectedArticle} onClose={() => (selectedArticle = null)} />
 
+	{#if contextMenu}
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="fixed inset-0 z-[240]"
+			onclick={() => (contextMenu = null)}
+			oncontextmenu={(e) => {
+				e.preventDefault();
+				contextMenu = null;
+			}}
+		></div>
+		<ContextMenu
+			x={contextMenu.x}
+			y={contextMenu.y}
+			type={contextMenu.type}
+			feedId={contextMenu.type === 'feed' ? contextMenu.feedId : undefined}
+			articleActions={
+				contextMenu.type === 'article'
+					? (() => {
+							const a = contextMenu.article;
+							return {
+								onToggleRead: () => handleToggleRead(a),
+								onAddTag: () => {},
+								onShowFeed: () =>
+									nav.push({
+										type: 'Feed',
+										id: a.feed,
+										name: feeds[a.feed]?.name || 'Feed'
+									}),
+								read: a.read
+							};
+						})()
+					: undefined
+			}
+			superfeeds={contextMenu.type === 'feed' ? allSuperfeeds : undefined}
+			onAddToSuperfeed={handleAddFeedToSuperfeed}
+			onClose={() => (contextMenu = null)}
+		/>
+	{/if}
+
+	{#if settingsTarget?.type === 'feed' && settingsTarget.feed}
+		<FeedSettingsModal
+			feed={settingsTarget.feed}
+			superfeeds={allSuperfeeds}
+			onClose={() => (settingsTarget = null)}
+			onSaved={() => loadData()}
+		/>
+	{:else if settingsTarget?.type === 'superfeed' && settingsTarget.superfeed}
+		<SuperfeedSettingsModal
+			superfeed={settingsTarget.superfeed}
+			onClose={() => (settingsTarget = null)}
+			onSaved={() => loadData()}
+		/>
+	{:else if settingsTarget?.type === 'tag' && settingsTarget.tag}
+		<TagSettingsModal
+			tag={settingsTarget.tag}
+			onClose={() => (settingsTarget = null)}
+			onSaved={() => loadData()}
+		/>
+	{/if}
+
 	<AddDialog
 		isOpen={isAddOpen}
 		onClose={() => (isAddOpen = false)}
 		onAddFeed={handleAddFeed}
 		onCreateSuperfeed={handleCreateSuperfeed}
+		onCreateTag={handleCreateTag}
 	/>
 </div>
 

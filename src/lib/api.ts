@@ -1,4 +1,15 @@
 import { invoke } from '@tauri-apps/api/tauri';
+import { open as shellOpen } from '@tauri-apps/api/shell';
+
+/** Open a URL in the system default browser (Tauri shell). No-op or fallback if not in Tauri. */
+export async function openInBrowser(url: string): Promise<void> {
+	try {
+		await shellOpen(url);
+	} catch {
+		// Fallback when not in Tauri (e.g. dev in browser)
+		window.open(url, '_blank');
+	}
+}
 
 export interface Article {
     id: number;
@@ -69,14 +80,27 @@ export const deleteArticle = (id: number) => invoke<void>('delete_article', { id
 export const getAllFeeds = () => invoke<Feed[]>('get_all_feeds');
 export const getFeed = (id: number) => invoke<Feed>('get_feed', { id });
 export const searchFeeds = (query: string) => invoke<Feed[]>('search_feeds', { query });
+export const getSuperfeedIdsForFeed = (feedId: number) =>
+	invoke<number[]>('get_superfeed_ids_for_feed', { feedId });
+export const updateFeedName = (id: number, name: string) =>
+	invoke<void>('update_feed_name', { id, name });
+export const updateFeedType = (id: number, feedType: 'News' | 'Article' | 'Essay') =>
+	invoke<void>('update_feed_type', { id, feedType });
+export const addFeedToSuperfeed = (feedId: number, superfeedId: number) =>
+	invoke<void>('add_feed_to_superfeed', { feedId, superfeedId });
+export const removeFeedFromSuperfeed = (feedId: number, superfeedId: number) =>
+	invoke<void>('remove_feed_from_superfeed', { feedId, superfeedId });
 
 // Superfeed Commands
 export const getAllSuperfeeds = () => invoke<Superfeed[]>('get_all_superfeeds');
 export const searchSuperfeeds = (query: string) => invoke<Superfeed[]>('search_superfeeds', { query });
+export const renameSuperfeed = (id: number, name: string) =>
+	invoke<void>('rename_superfeed', { id, name });
 
 // Tag Commands
 export const getAllTags = () => invoke<Tag[]>('get_all_tags');
 export const searchTags = (query: string) => invoke<Tag[]>('search_tags', { query });
+export const renameTag = (id: number, name: string) => invoke<void>('rename_tag', { id, name });
 
 // Undo
 export const undo = () => invoke<void>('undo');
@@ -87,6 +111,7 @@ export const importOpml = (path: string) => invoke<void>('import_opml', { path }
 export const exportOpml = (path: string) => invoke<void>('export_opml', { path });
 
 export const createSuperfeed = (name: string) => invoke<void>('create_superfeed', { name });
+export const createTag = (name: string) => invoke<void>('create_tag', { name });
 
 // Syndication
 export const addFeed = (url: string, feedType: string, superfeedId: number = 1) =>

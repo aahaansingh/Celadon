@@ -1,23 +1,27 @@
 <script lang="ts">
-	import { X, Plus, Rss, Layers, Globe } from 'lucide-svelte';
+	import { X, Plus, Rss, Layers, Hash } from 'lucide-svelte';
 	import { fade, scale } from 'svelte/transition';
 
-	let { isOpen, onClose, onAddFeed, onCreateSuperfeed } = $props<{
+	let { isOpen, onClose, onAddFeed, onCreateSuperfeed, onCreateTag } = $props<{
 		isOpen: boolean;
 		onClose: () => void;
-		onAddFeed: (url: string) => void;
+		onAddFeed: (url: string, feedType: 'News' | 'Article' | 'Essay') => void;
 		onCreateSuperfeed: (name: string) => void;
+		onCreateTag: (name: string) => void;
 	}>();
 
-	let tab = $state<'feed' | 'superfeed'>('feed');
+	let tab = $state<'feed' | 'superfeed' | 'tag'>('feed');
 	let inputVal = $state('');
+	let feedType = $state<'News' | 'Article' | 'Essay'>('News');
 
 	function handleSubmit() {
 		if (!inputVal.trim()) return;
 		if (tab === 'feed') {
-			onAddFeed(inputVal.trim());
-		} else {
+			onAddFeed(inputVal.trim(), feedType);
+		} else if (tab === 'superfeed') {
 			onCreateSuperfeed(inputVal.trim());
+		} else {
+			onCreateTag(inputVal.trim());
 		}
 		inputVal = '';
 		onClose();
@@ -65,6 +69,15 @@
 					>
 						New Superfeed
 					</button>
+					<button
+						onclick={() => (tab = 'tag')}
+						class="flex-1 py-2 text-xs font-heading font-bold uppercase tracking-wider rounded-lg transition-all {tab ===
+						'tag'
+							? 'bg-card shadow-sm text-primary'
+							: 'text-muted-foreground'}"
+					>
+						New Tag
+					</button>
 				</div>
 
 				<div class="space-y-4">
@@ -73,31 +86,50 @@
 							for="add-input"
 							class="text-xs font-heading font-bold uppercase tracking-widest text-muted-foreground ml-1"
 						>
-							{tab === 'feed' ? 'RSS/Atom URL' : 'Superfeed Name'}
+							{tab === 'feed' ? 'RSS/Atom URL' : tab === 'superfeed' ? 'Superfeed Name' : 'Tag Name'}
 						</label>
 						<div class="relative">
 							<input
 								id="add-input"
 								type="text"
 								bind:value={inputVal}
-								placeholder={tab === 'feed' ? 'https://example.com/feed.xml' : 'My Collection'}
+								placeholder={tab === 'feed' ? 'https://example.com/feed.xml' : tab === 'superfeed' ? 'My Collection' : 'My Tag'}
 								class="w-full bg-muted border-none rounded-2xl px-5 py-3 pr-12 focus:ring-2 focus:ring-primary/20 transition-all font-body text-sm"
 								onkeydown={(e) => e.key === 'Enter' && handleSubmit()}
 							/>
 							<div class="absolute right-4 top-1/2 -translate-y-1/2">
 								{#if tab === 'feed'}
 									<Rss class="w-4 h-4 text-muted-foreground" />
-								{:else}
+								{:else if tab === 'superfeed'}
 									<Layers class="w-4 h-4 text-muted-foreground" />
+								{:else}
+									<Hash class="w-4 h-4 text-muted-foreground" />
 								{/if}
 							</div>
 						</div>
 					</div>
 
+					{#if tab === 'feed'}
+						<div class="space-y-2">
+							<label for="add-feed-type" class="text-xs font-heading font-bold uppercase tracking-widest text-muted-foreground ml-1">Type</label>
+							<select
+								id="add-feed-type"
+								bind:value={feedType}
+								class="w-full bg-muted border-none rounded-2xl px-4 py-2 font-body text-sm"
+							>
+								<option value="News">News (1D)</option>
+								<option value="Article">Article (3D)</option>
+								<option value="Essay">Essay (1W)</option>
+							</select>
+						</div>
+					{/if}
+
 					<p class="text-[10px] text-muted-foreground italic px-1">
 						{tab === 'feed'
 							? 'Adding a feed will start the syndicator engine to gather articles.'
-							: 'Superfeeds allow you to group multiple sources into a single view.'}
+							: tab === 'superfeed'
+								? 'Superfeeds allow you to group multiple sources into a single view.'
+								: 'Tags let you label articles for later filtering.'}
 					</p>
 				</div>
 

@@ -2,10 +2,11 @@
 	import type { Feed } from '$lib/api';
 	import { Rss, Settings } from 'lucide-svelte';
 
-	let { feed, onClick, onSettings } = $props<{
+	let { feed, onClick, onSettings, onContextMenu } = $props<{
 		feed: Feed;
 		onClick: () => void;
 		onSettings: () => void;
+		onContextMenu?: (e: MouseEvent) => void;
 	}>();
 </script>
 
@@ -13,6 +14,10 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
 	onclick={onClick}
+	oncontextmenu={(e) => {
+		e.preventDefault();
+		onContextMenu?.(e);
+	}}
 	class="bg-card border border-border beveled p-4 cursor-pointer hover:shadow-lg transition-all duration-300 aspect-square flex flex-col justify-between group"
 >
 	<div class="flex flex-col items-center justify-center flex-1 gap-3">
