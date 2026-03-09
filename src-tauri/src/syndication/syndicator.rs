@@ -97,19 +97,21 @@ pub async fn new_feed(
     // Add to superfeed
     feed_api::add_feed_to_superfeed(db, feed_id, superfeed_id).await?;
 
-    // Add articles
+    // Add articles (mark as read if already past expiry — backloaded articles)
     match feed {
         SyndicationFeed::Rss(ref channel) => {
             for article in channel.items.iter() {
                 let published = unwrap_date(article.pub_date.clone());
+                let expiry_at = calculate_expiry(published, &feed_type);
+                let already_expired = Utc::now() >= expiry_at;
                 article_api::create_article(
                     db,
                     article_api::article_max_id(db).await? + 1,
                     unwrap_default(article.link.clone(), channel.link.clone()),
                     unwrap_default(article.title.clone(), channel.title.clone()),
                     published,
-                    calculate_expiry(published, &feed_type),
-                    false,
+                    expiry_at,
+                    already_expired,
                     unwrap_default(
                         article.description.clone(),
                         "No description provided.".to_owned(),
@@ -122,6 +124,8 @@ pub async fn new_feed(
         SyndicationFeed::Atom(ref feed_inner) => {
             for article in feed_inner.entries.iter() {
                 let published = unwrap_default(article.published, Utc::now().into()).to_utc();
+                let expiry_at = calculate_expiry(published, &feed_type);
+                let already_expired = Utc::now() >= expiry_at;
                 article_api::create_article(
                     db,
                     article_api::article_max_id(db).await? + 1,
@@ -132,8 +136,8 @@ pub async fn new_feed(
                         .unwrap_or_default(),
                     article.title.value.clone(),
                     published,
-                    calculate_expiry(published, &feed_type),
-                    false,
+                    expiry_at,
+                    already_expired,
                     unwrap_atom_content(
                         article.content.clone(),
                         "No description provided.".to_owned(),
@@ -166,14 +170,16 @@ pub async fn update_feed(
                     match get_article_by_url(db, article_url.clone()).await? {
                         None => {
                             let published = unwrap_date(article.pub_date.clone());
+                            let expiry_at = calculate_expiry(published, &feed_model.feed_type);
+                            let already_expired = Utc::now() >= expiry_at;
                             article_api::create_article(
                                 db,
                                 article_api::article_max_id(db).await? + 1,
                                 article_url,
                                 unwrap_default(article.title.clone(), channel.title.clone()),
                                 published,
-                                calculate_expiry(published, &feed_model.feed_type),
-                                false,
+                                expiry_at,
+                                already_expired,
                                 unwrap_default(
                                     article.description.clone(),
                                     "No description provided.".to_owned(),
@@ -198,14 +204,16 @@ pub async fn update_feed(
                     None => {
                         let published =
                             unwrap_default(article.published, Utc::now().into()).to_utc();
+                        let expiry_at = calculate_expiry(published, &feed_model.feed_type);
+                        let already_expired = Utc::now() >= expiry_at;
                         article_api::create_article(
                             db,
                             article_api::article_max_id(db).await? + 1,
                             article_url,
                             feed_inner.title.value.clone(),
                             published,
-                            calculate_expiry(published, &feed_model.feed_type),
-                            false,
+                            expiry_at,
+                            already_expired,
                             unwrap_atom_content(
                                 article.content.clone(),
                                 "No description provided.".to_owned(),

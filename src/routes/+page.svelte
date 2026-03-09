@@ -18,11 +18,17 @@
 		unreadArticle,
 		addFeed,
 		addFeedToSuperfeed,
+		removeFeedFromSuperfeed,
 		createSuperfeed,
 		createTag,
+		tagArticle,
+		untagArticle,
+		getArticleTags,
+		getSuperfeedIdsForFeed,
 		type Article,
 		type Feed,
 		type Superfeed,
+		ALL_SUPERFEED_ID,
 		type Tag as TagType
 	} from '$lib/api';
 	import CommandBar from '$lib/components/CommandBar.svelte';
@@ -37,6 +43,8 @@
 	import FeedSettingsModal from '$lib/components/FeedSettingsModal.svelte';
 	import SuperfeedSettingsModal from '$lib/components/SuperfeedSettingsModal.svelte';
 	import TagSettingsModal from '$lib/components/TagSettingsModal.svelte';
+	import AddTagToArticleModal from '$lib/components/AddTagToArticleModal.svelte';
+	import AddFeedToSuperfeedModal from '$lib/components/AddFeedToSuperfeedModal.svelte';
 
 	let articles = $state<Article[]>([]);
 	let feeds = $state<Record<number, Feed>>({});
@@ -69,6 +77,12 @@
 		| { type: 'tag'; tag: TagType }
 		| null
 	>(null);
+	let addTagTargetData = $state<{ article: Article; assignedTagIds: number[] } | null>(null);
+	let addToSuperfeedTargetData = $state<{
+		feedId: number;
+		feedName: string;
+		assignedSuperfeedIds: number[];
+	} | null>(null);
 
 	const PAGE_SIZE = 50;
 
@@ -86,7 +100,14 @@
 
 		try {
 			if (!append) {
-				allFeeds = await getAllFeeds();
+				const [feedsRes, superfeedsRes, tagsRes] = await Promise.all([
+					getAllFeeds(),
+					getAllSuperfeeds(),
+					getAllTags()
+				]);
+				allFeeds = feedsRes;
+				allSuperfeeds = superfeedsRes;
+				allTags = tagsRes;
 				feeds = allFeeds.reduce(
 					(acc: Record<number, Feed>, f: Feed) => ({ ...acc, [f.id]: f }),
 					{}
@@ -117,16 +138,6 @@
 				articles = [...articles, ...newArticles];
 			} else {
 				articles = newArticles;
-			}
-
-			// Load list data for FeedsList/SuperfeedsList/TagsList views after articles so it can't block or clear articles
-			if (!append) {
-				getAllSuperfeeds()
-					.then((v) => (allSuperfeeds = v))
-					.catch((e) => console.error('Failed to load superfeeds:', e));
-				getAllTags()
-					.then((v) => (allTags = v))
-					.catch((e) => console.error('Failed to load tags:', e));
 			}
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : String(e);
@@ -225,6 +236,32 @@
 		}
 	}
 
+	async function handleSuperfeedModalApply(selectedSuperfeedIds: number[]) {
+		const data = addToSuperfeedTargetData;
+		if (!data) return;
+		const { feedId, assignedSuperfeedIds } = data;
+		const initial = new Set(assignedSuperfeedIds);
+		const final = new Set(selectedSuperfeedIds);
+		try {
+			for (const id of final) {
+				if (!initial.has(id)) await addFeedToSuperfeed(feedId, id);
+			}
+			for (const id of initial) {
+				if (!final.has(id)) {
+					if (id === ALL_SUPERFEED_ID) continue; // All feeds must stay in "All"
+					await removeFeedFromSuperfeed(feedId, id);
+				}
+			}
+			addToSuperfeedTargetData = null;
+			errorMsg = null;
+			await loadData();
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : String(e);
+			errorMsg = `Couldn't update superfeeds: ${msg}`;
+			console.error(e);
+		}
+	}
+
 	async function handleAddFeedToSuperfeed(feedId: number, superfeedId: number) {
 		try {
 			await addFeedToSuperfeed(feedId, superfeedId);
@@ -232,6 +269,35 @@
 		} catch (e) {
 			console.error(e);
 		}
+	}
+
+	async function handleTagModalApply(selectedTagIds: number[]) {
+		const data = addTagTargetData;
+		if (!data) return;
+		const articleId = data.article.id;
+		const initial = new Set(data.assignedTagIds);
+		const final = new Set(selectedTagIds);
+		try {
+			for (const id of final) {
+				if (!initial.has(id)) await tagArticle(id, articleId);
+			}
+			for (const id of initial) {
+				if (!final.has(id)) await untagArticle(id, articleId);
+			}
+			addTagTargetData = null;
+			errorMsg = null;
+		} catch (e) {
+			const msg = e instanceof Error ? e.message : String(e);
+			errorMsg = `Couldn't update tags: ${msg}`;
+			console.error(e);
+		}
+	}
+
+	async function handleCreateAndTagForArticle(name: string): Promise<number> {
+		if (!addTagTargetData) throw new Error('No article');
+		const newTagId = await createTag(name);
+		allTags = await getAllTags();
+		return newTagId;
 	}
 </script>
 
@@ -394,7 +460,21 @@
 							const a = contextMenu.article;
 							return {
 								onToggleRead: () => handleToggleRead(a),
-								onAddTag: () => {},
+								onAddTag: async () => {
+									contextMenu = null;
+									try {
+										const tagModels = await getArticleTags(a.id);
+										addTagTargetData = {
+											article: a,
+											assignedTagIds: tagModels.map((t) => t.id)
+										};
+										errorMsg = null;
+									} catch (e) {
+										const msg = e instanceof Error ? e.message : String(e);
+										errorMsg = `Couldn't load tags for this article. ${msg}`;
+										addTagTargetData = { article: a, assignedTagIds: [] };
+									}
+								},
 								onShowFeed: () =>
 									nav.push({
 										type: 'Feed',
@@ -406,9 +486,46 @@
 						})()
 					: undefined
 			}
-			superfeeds={contextMenu.type === 'feed' ? allSuperfeeds : undefined}
-			onAddToSuperfeed={handleAddFeedToSuperfeed}
+			onOpenAddToSuperfeed={
+				contextMenu.type === 'feed'
+					? async (feedId) => {
+							const feedName = feeds[feedId]?.name ?? 'Feed';
+							contextMenu = null;
+							try {
+								const ids = await getSuperfeedIdsForFeed(feedId);
+								addToSuperfeedTargetData = { feedId, feedName, assignedSuperfeedIds: ids };
+								errorMsg = null;
+							} catch (e) {
+								const msg = e instanceof Error ? e.message : String(e);
+								errorMsg = `Couldn't load superfeeds for this feed. ${msg}`;
+								addToSuperfeedTargetData = { feedId, feedName, assignedSuperfeedIds: [] };
+							}
+						}
+					: undefined
+			}
 			onClose={() => (contextMenu = null)}
+		/>
+	{/if}
+
+	{#if addTagTargetData}
+		<AddTagToArticleModal
+			article={addTagTargetData.article}
+			tags={allTags}
+			assignedTagIds={addTagTargetData.assignedTagIds}
+			onApply={handleTagModalApply}
+			onCreateAndTag={handleCreateAndTagForArticle}
+			onClose={() => (addTagTargetData = null)}
+		/>
+	{/if}
+
+	{#if addToSuperfeedTargetData}
+		<AddFeedToSuperfeedModal
+			feedId={addToSuperfeedTargetData.feedId}
+			feedName={addToSuperfeedTargetData.feedName}
+			superfeeds={allSuperfeeds.filter((s) => s.id !== ALL_SUPERFEED_ID)}
+			assignedSuperfeedIds={addToSuperfeedTargetData.assignedSuperfeedIds}
+			onApply={handleSuperfeedModalApply}
+			onClose={() => (addToSuperfeedTargetData = null)}
 		/>
 	{/if}
 

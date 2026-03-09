@@ -112,48 +112,77 @@
 	}
 
 	function parseAndExecute(raw: string) {
+		const trimmed = raw.trim();
 		let filter: ReadFilter = 'Unread';
-		let cleanQuery = raw;
+		let cleanQuery = trimmed;
+
+		// Solo filter commands: \a, \r, \u (no query) → update filter on current view
+		if (trimmed === '\\a' || trimmed === '\\r' || trimmed === '\\u') {
+			if (trimmed === '\\a') filter = 'All';
+			else if (trimmed === '\\r') filter = 'Read';
+			else filter = 'Unread';
+			nav.updateFilter(filter);
+			return;
+		}
 
 		// Prefix form: \a:query or \r:query or \u:query
-		if (raw.startsWith('\\a:')) {
+		if (trimmed.startsWith('\\a:')) {
 			filter = 'All';
-			cleanQuery = raw.slice(3).trim();
+			cleanQuery = trimmed.slice(3).trim();
 			if (cleanQuery) {
 				nav.push({ type: 'Search', name: `Search: ${cleanQuery}`, query: cleanQuery, filter });
 				return;
 			}
-			cleanQuery = '\\a';
-		} else if (raw.startsWith('\\r:')) {
+			// "\a:" with no query → just switch to All filter
+			nav.updateFilter(filter);
+			return;
+		}
+		if (trimmed.startsWith('\\r:')) {
 			filter = 'Read';
-			cleanQuery = raw.slice(3).trim();
+			cleanQuery = trimmed.slice(3).trim();
 			if (cleanQuery) {
 				nav.push({ type: 'Search', name: `Search: ${cleanQuery}`, query: cleanQuery, filter });
 				return;
 			}
-			cleanQuery = '\\r';
-		} else if (raw.startsWith('\\u:')) {
+			nav.updateFilter(filter);
+			return;
+		}
+		if (trimmed.startsWith('\\u:')) {
 			filter = 'Unread';
-			cleanQuery = raw.slice(3).trim();
+			cleanQuery = trimmed.slice(3).trim();
 			if (cleanQuery) {
 				nav.push({ type: 'Search', name: `Search: ${cleanQuery}`, query: cleanQuery, filter });
 				return;
 			}
-			cleanQuery = '\\u';
+			nav.updateFilter(filter);
+			return;
 		}
 
-		// Suffix form: [query]\a or [query]\r or [query]\u
-		if (raw.endsWith('\\a')) {
+		// Suffix form: [query]\a or [query]\r or [query]\u (query must be non-empty for search)
+		if (trimmed.endsWith('\\a') && trimmed.length > 2) {
 			filter = 'All';
-			cleanQuery = raw.slice(0, -2).trim();
-		} else if (raw.endsWith('\\r')) {
+			cleanQuery = trimmed.slice(0, -2).trim();
+			if (cleanQuery) {
+				nav.push({ type: 'Search', name: `Search: ${cleanQuery}`, query: cleanQuery, filter });
+				return;
+			}
+		} else if (trimmed.endsWith('\\r') && trimmed.length > 2) {
 			filter = 'Read';
-			cleanQuery = raw.slice(0, -2).trim();
-		} else if (raw.endsWith('\\u')) {
+			cleanQuery = trimmed.slice(0, -2).trim();
+			if (cleanQuery) {
+				nav.push({ type: 'Search', name: `Search: ${cleanQuery}`, query: cleanQuery, filter });
+				return;
+			}
+		} else if (trimmed.endsWith('\\u') && trimmed.length > 2) {
 			filter = 'Unread';
-			cleanQuery = raw.slice(0, -2).trim();
+			cleanQuery = trimmed.slice(0, -2).trim();
+			if (cleanQuery) {
+				nav.push({ type: 'Search', name: `Search: ${cleanQuery}`, query: cleanQuery, filter });
+				return;
+			}
 		}
 
+		// List / resolve commands
 		if (cleanQuery === '\\f') {
 			nav.push({ type: 'FeedsList', name: 'All Feeds' });
 		} else if (cleanQuery === '\\s') {
@@ -169,10 +198,8 @@
 		} else if (cleanQuery.startsWith('\\t:')) {
 			const name = cleanQuery.slice(3);
 			nav.push({ type: 'Tag', name: `Tag: ${name}`, query: name, filter });
-		} else if (cleanQuery === '\\a' || cleanQuery === '\\r' || cleanQuery === '\\u') {
-			// Solo filter update
-			nav.updateFilter(filter);
 		} else {
+			// Plain search
 			nav.push({ type: 'Search', name: `Search: ${cleanQuery}`, query: cleanQuery, filter });
 		}
 	}
@@ -256,7 +283,7 @@
 				/>
 				<input
 					type="text"
-					placeholder="Search or enter command (\f:, \s:, \t:, \a, \r)..."
+					placeholder="Search or enter command (\f, \s, \t, \a / [query]\a / \a:[query])..."
 					bind:value={searchQuery}
 					oninput={handleInput}
 					onkeydown={handleKeydown}

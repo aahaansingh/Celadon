@@ -18,13 +18,13 @@ pub async fn get_all_tags(state: State<'_, DatabaseConnection>) -> Result<Vec<ta
 }
 
 #[tauri::command]
-pub async fn create_tag(state: State<'_, DatabaseConnection>, name: String) -> Result<(), String> {
+pub async fn create_tag(state: State<'_, DatabaseConnection>, name: String) -> Result<i32, String> {
     let db = state.inner();
     let id = tag_api::tag_max_id(db).await.map_err(|e| e.to_string())? + 1;
     tag_api::create_tag(db, id, name)
         .await
         .map_err(|e| e.to_string())?;
-    Ok(())
+    Ok(id)
 }
 
 #[tauri::command]

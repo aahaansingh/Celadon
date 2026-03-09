@@ -41,6 +41,9 @@ export interface Superfeed {
     deleted: boolean;
 }
 
+/** Default "All" superfeed id; every feed must belong to it. Not shown as add/remove in UI. */
+export const ALL_SUPERFEED_ID = 1;
+
 export interface Tag {
     id: number;
     name: string;
@@ -56,7 +59,8 @@ export interface ArticleQuery {
     offset?: number;
 }
 
-// Article Commands
+// Tauri expects camelCase for multi-word argument keys (e.g. feedId, tagId, superfeedId).
+// Single-word keys (id, name, filter, etc.) stay as-is.
 export const getArticles = (id: number, filter: ReadFilter, num?: number, offset?: number) =>
     invoke<Article[]>('get_articles', { id, filter, num, offset });
 
@@ -75,6 +79,8 @@ export const searchArticles = (query: string, filter: ReadFilter, num?: number, 
 export const readArticle = (id: number) => invoke<void>('read_article', { id });
 export const unreadArticle = (id: number) => invoke<void>('unread_article', { id });
 export const deleteArticle = (id: number) => invoke<void>('delete_article', { id });
+export const getArticleTags = (articleId: number) =>
+	invoke<Tag[]>('get_article_tags', { id: articleId });
 
 // Feed Commands
 export const getAllFeeds = () => invoke<Feed[]>('get_all_feeds');
@@ -111,7 +117,11 @@ export const importOpml = (path: string) => invoke<void>('import_opml', { path }
 export const exportOpml = (path: string) => invoke<void>('export_opml', { path });
 
 export const createSuperfeed = (name: string) => invoke<void>('create_superfeed', { name });
-export const createTag = (name: string) => invoke<void>('create_tag', { name });
+export const createTag = (name: string) => invoke<number>('create_tag', { name });
+export const tagArticle = (tagId: number, articleId: number) =>
+	invoke<void>('tag_article', { tagId, articleId });
+export const untagArticle = (tagId: number, articleId: number) =>
+	invoke<void>('untag_article', { tagId, articleId });
 
 // Syndication
 export const addFeed = (url: string, feedType: string, superfeedId: number = 1) =>

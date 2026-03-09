@@ -51,8 +51,9 @@
 		</div>
 		<div class="p-6 space-y-4">
 			<div>
-				<label class="text-xs font-heading font-bold uppercase tracking-widest text-muted-foreground block mb-1">Name</label>
+				<label for="tag-settings-name" class="text-xs font-heading font-bold uppercase tracking-widest text-muted-foreground block mb-1">Name</label>
 				<input
+					id="tag-settings-name"
 					type="text"
 					bind:value={name}
 					class="w-full bg-muted border-none rounded-2xl px-4 py-2 font-body text-sm"

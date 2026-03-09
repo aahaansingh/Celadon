@@ -1,5 +1,4 @@
 <script lang="ts">
-	import type { Superfeed } from '$lib/api';
 	import { Layers, Tag, CheckCircle, Eye } from 'lucide-svelte';
 
 	let {
@@ -8,8 +7,7 @@
 		type,
 		feedId,
 		articleActions,
-		superfeeds,
-		onAddToSuperfeed,
+		onOpenAddToSuperfeed,
 		onClose
 	} = $props<{
 		x: number;
@@ -22,20 +20,10 @@
 			onShowFeed: () => void;
 			read: boolean;
 		};
-		superfeeds?: Superfeed[];
-		onAddToSuperfeed?: (feedId: number, superfeedId: number) => void;
+		/** Called when user clicks "Add to superfeed"; opens the add-to-superfeed modal. */
+		onOpenAddToSuperfeed?: (feedId: number) => void;
 		onClose: () => void;
 	}>();
-
-	let showSuperfeedSubmenu = $state(false);
-
-	function handleAddToSuperfeed(superfeedId: number) {
-		if (feedId != null && onAddToSuperfeed) {
-			onAddToSuperfeed(feedId, superfeedId);
-		}
-		showSuperfeedSubmenu = false;
-		onClose();
-	}
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -47,37 +35,18 @@
 	tabindex="-1"
 	onclick={(e) => e.stopPropagation()}
 >
-	{#if type === 'feed' && superfeeds && superfeeds.length > 0 && feedId != null && onAddToSuperfeed}
-		<div
-			class="relative"
-			onmouseenter={() => (showSuperfeedSubmenu = true)}
-			onmouseleave={() => (showSuperfeedSubmenu = false)}
+	{#if type === 'feed' && feedId != null && onOpenAddToSuperfeed}
+		<button
+			type="button"
+			class="w-full px-4 py-2 text-left text-sm font-body flex items-center gap-2 hover:bg-muted transition-colors"
+			onclick={() => {
+				onOpenAddToSuperfeed(feedId);
+				onClose();
+			}}
 		>
-			<button
-				type="button"
-				class="w-full px-4 py-2 text-left text-sm font-body flex items-center gap-2 hover:bg-muted transition-colors"
-				onclick={() => (showSuperfeedSubmenu = !showSuperfeedSubmenu)}
-			>
-				<Layers class="w-4 h-4 text-muted-foreground" />
-				Add to superfeed
-			</button>
-			{#if showSuperfeedSubmenu}
-				<div
-					class="absolute left-full top-0 ml-0.5 min-w-[160px] py-1 bg-card border border-border rounded-xl shadow-xl"
-					role="menu"
-				>
-					{#each superfeeds as s (s.id)}
-						<button
-							type="button"
-							class="w-full px-4 py-2 text-left text-sm font-body hover:bg-muted transition-colors"
-							onclick={() => handleAddToSuperfeed(s.id)}
-						>
-							{s.name}
-						</button>
-					{/each}
-				</div>
-			{/if}
-		</div>
+			<Layers class="w-4 h-4 text-muted-foreground" />
+			Add to superfeed
+		</button>
 	{:else if type === 'article' && articleActions}
 		<button
 			type="button"
