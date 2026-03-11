@@ -53,7 +53,7 @@
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="fixed z-[250] min-w-[180px] py-1 bg-card bg-opacity-100 border border-border rounded-xl shadow-xl overflow-hidden"
+	class="fixed z-[250] min-w-[180px] py-1 bg-background border border-border rounded-xl shadow-xl overflow-hidden"
 	style="left: {x}px; top: {y}px;"
 	role="menu"
 	tabindex="-1"

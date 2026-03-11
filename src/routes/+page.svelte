@@ -40,7 +40,6 @@
 	} from '$lib/api';
 	import CommandBar from '$lib/components/CommandBar.svelte';
 	import ArticleCard from '$lib/components/ArticleCard.svelte';
-	import ViewHeader from '$lib/components/ViewHeader.svelte';
 	import ArticleViewer from '$lib/components/ArticleViewer.svelte';
 	import FeedCard from '$lib/components/FeedCard.svelte';
 	import SuperfeedCard from '$lib/components/SuperfeedCard.svelte';
@@ -399,8 +398,6 @@
 	{/if}
 
 	<main class="container mx-auto pb-10">
-		<ViewHeader />
-
 		{#if loading}
 			<div class="flex items-center justify-center h-64">
 				<div class="animate-pulse text-primary font-heading uppercase tracking-widest text-sm">

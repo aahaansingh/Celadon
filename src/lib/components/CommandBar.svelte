@@ -6,11 +6,11 @@
 		Plus,
 		Moon,
 		Sun,
-		Home,
 		Hash,
 		Radio,
 		Layers,
-		RotateCcw
+		RotateCcw,
+		Rss
 	} from 'lucide-svelte';
 	import { nav } from '$lib/nav.svelte';
 	import { clsx, type ClassValue } from 'clsx';
@@ -254,13 +254,6 @@
 			<!-- Navigation Controls -->
 			<div class="flex gap-1">
 				<button
-					onclick={() => nav.reset()}
-					class="p-2 hover:bg-muted rounded-lg transition-all text-muted-foreground hover:text-primary"
-					title="Home"
-				>
-					<Home class="w-4 h-4" />
-				</button>
-				<button
 					onclick={() => nav.back()}
 					disabled={!nav.canGoBack}
 					class="p-2 hover:bg-muted rounded-lg transition-all disabled:opacity-20"
@@ -340,6 +333,21 @@
 			<!-- Actions -->
 			<div class="flex items-center gap-3">
 				<button
+					onclick={() => nav.push({ type: 'FeedsList', name: 'Feeds' })}
+					class="p-2 hover:bg-muted rounded-xl transition-all text-muted-foreground hover:text-primary"
+					title="Feeds"
+				>
+					<Rss class="w-5 h-5" />
+				</button>
+				<button
+					onclick={() => nav.push({ type: 'SuperfeedsList', name: 'All Superfeeds' })}
+					class="p-2 hover:bg-muted rounded-xl transition-all text-muted-foreground hover:text-primary"
+					title="All Superfeeds"
+				>
+					<Layers class="w-5 h-5" />
+				</button>
+
+				<button
 					onclick={onRefresh}
 					class="p-2 hover:bg-muted rounded-xl transition-all text-muted-foreground hover:text-foreground"
 					title="Refresh"
@@ -357,14 +365,6 @@
 					{:else}
 						<Moon class="w-4 h-4" />
 					{/if}
-				</button>
-
-				<button
-					onclick={() => nav.push({ type: 'SuperfeedsList', name: 'Discovery' })}
-					class="p-2 hover:bg-muted rounded-xl transition-all text-muted-foreground hover:text-primary"
-					title="Discovery"
-				>
-					<Layers class="w-5 h-5" />
 				</button>
 
 				<button

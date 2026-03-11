@@ -12,8 +12,8 @@ export interface ViewState {
 }
 
 class NavigationStore {
-    history: ViewState[] = [{ type: 'All', name: 'All Articles', filter: 'Unread', offset: 0 }];
-    currentIndex = 0;
+    history = $state<ViewState[]>([{ type: 'All', name: 'All Articles', filter: 'Unread', offset: 0 }]);
+    currentIndex = $state(0);
 
     current = $state<ViewState>({ type: 'All', name: 'All Articles', filter: 'Unread', offset: 0 });
 
@@ -25,7 +25,7 @@ class NavigationStore {
         if (this.currentIndex < this.history.length - 1) {
             this.history = this.history.slice(0, this.currentIndex + 1);
         }
-        this.history.push(view);
+        this.history = [...this.history, view];
         this.currentIndex = this.history.length - 1;
         this.current = view;
     }
