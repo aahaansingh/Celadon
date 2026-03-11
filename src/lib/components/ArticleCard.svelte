@@ -4,7 +4,7 @@
 	import { decodeHtmlEntities } from '$lib/sanitizeHtml';
 	import { Clock, CheckCircle2, Circle, Tag, ExternalLink } from 'lucide-svelte';
 
-	let { article, feed, onToggleRead, onAddTag, onShowFeed, onClick, onContextMenu } = $props<{
+	let { article, feed, onToggleRead, onAddTag, onShowFeed, onClick, onContextMenu, tags = [], onTagClick } = $props<{
 		article: Article;
 		feed?: Feed;
 		onToggleRead: () => void;
@@ -12,6 +12,8 @@
 		onShowFeed: () => void;
 		onClick: () => void;
 		onContextMenu?: (e: MouseEvent) => void;
+		tags?: { id: number; name: string }[];
+		onTagClick?: (id: number, name: string) => void;
 	}>();
 
 	const typeColors: Record<string, string> = {
@@ -102,17 +104,34 @@
 	</div>
 
 	<div class="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border">
-		<div class="flex items-center gap-2 flex-wrap min-w-0">
+		<div class="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
 			{#if feed}
 				<span
-					class={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${typeColors[feed.feed_type]}`}
+					class={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0 ${typeColors[feed.feed_type]}`}
 				>
 					{typeLabels[feed.feed_type]}
 				</span>
 			{/if}
-			<!-- Tags placeholder -->
-			<div class="flex gap-1">
-				<Tag class="w-3 h-3 text-muted-foreground" />
+			<Tag class="w-3 h-3 text-muted-foreground shrink-0" />
+			<div class="flex gap-1 overflow-x-auto overflow-y-hidden min-w-0">
+				{#each tags as tag}
+					{#if onTagClick}
+						<button
+							type="button"
+							onclick={(e) => {
+								e.stopPropagation();
+								onTagClick(tag.id, tag.name);
+							}}
+							class="text-[10px] font-body px-2 py-0.5 rounded-full bg-muted text-muted-foreground hover:bg-primary/20 hover:text-primary pill-hover-lighten whitespace-nowrap shrink-0 transition-colors"
+						>
+							{tag.name}
+						</button>
+					{:else}
+						<span class="text-[10px] font-body px-2 py-0.5 rounded-full bg-muted text-muted-foreground whitespace-nowrap shrink-0">
+							{tag.name}
+						</span>
+					{/if}
+				{/each}
 			</div>
 		</div>
 

@@ -124,6 +124,11 @@ h6 {
   }
 }
 
+/* Dark mode: lighten pill text on hover (superfeed/tag pills) */
+.dark .pill-hover-lighten:hover {
+  color: var(--foreground);
+}
+
 /* Scrollbar styling for a premium feel */
 ::-webkit-scrollbar {
   width: 8px;

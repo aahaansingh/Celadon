@@ -1,12 +1,14 @@
 <script lang="ts">
 	import type { Feed } from '$lib/api';
-	import { Rss, Settings } from 'lucide-svelte';
+	import { Rss, Settings, Layers } from 'lucide-svelte';
 
-	let { feed, onClick, onSettings, onContextMenu } = $props<{
+	let { feed, onClick, onSettings, onContextMenu, superfeeds = [], onSuperfeedClick } = $props<{
 		feed: Feed;
 		onClick: () => void;
 		onSettings: () => void;
 		onContextMenu?: (e: MouseEvent) => void;
+		superfeeds?: { id: number; name: string }[];
+		onSuperfeedClick?: (id: number, name: string) => void;
 	}>();
 </script>
 
@@ -32,16 +34,36 @@
 		</p>
 	</div>
 
-	<div class="flex items-center justify-between pt-3 border-t border-border">
-		<span class="text-[10px] text-muted-foreground font-body">
-			Last: {new Date(feed.last_fetched).toLocaleDateString()}
-		</span>
+	<div class="flex items-center justify-between gap-2 pt-3 border-t border-border min-w-0">
+		<div class="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+			<Layers class="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+			<div class="flex gap-1 overflow-x-auto overflow-y-hidden min-w-0">
+				{#each superfeeds as s}
+					{#if onSuperfeedClick}
+						<button
+							type="button"
+							onclick={(e) => {
+								e.stopPropagation();
+								onSuperfeedClick(s.id, s.name);
+							}}
+							class="text-[10px] font-body px-2 py-0.5 rounded-full bg-muted text-muted-foreground hover:bg-primary/20 hover:text-primary pill-hover-lighten whitespace-nowrap shrink-0 transition-colors"
+						>
+							{s.name}
+						</button>
+					{:else}
+						<span class="text-[10px] font-body px-2 py-0.5 rounded-full bg-muted text-muted-foreground whitespace-nowrap shrink-0">
+							{s.name}
+						</span>
+					{/if}
+				{/each}
+			</div>
+		</div>
 		<button
 			onclick={(e) => {
 				e.stopPropagation();
 				onSettings();
 			}}
-			class="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-primary"
+			class="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground hover:text-primary shrink-0"
 		>
 			<Settings class="w-3.5 h-3.5" />
 		</button>

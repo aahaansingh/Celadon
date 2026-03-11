@@ -94,6 +94,8 @@
 	let pendingDelete = $state<{ type: 'feed' | 'superfeed' | 'tag'; id: number; name: string } | null>(null);
 	let superfeedFeedsList = $state<Feed[]>([]);
 	let feedSuperfeedsList = $state<Superfeed[]>([]);
+	let feedSuperfeeds = $state<Record<number, { id: number; name: string }[]>>({});
+	let articleTags = $state<Record<number, TagType[]>>({});
 	let settingsTarget = $state<
 		| { type: 'feed'; feed: Feed }
 		| { type: 'superfeed'; superfeed: Superfeed }
@@ -123,8 +125,24 @@
 
 		try {
 			if (nav.current.type === 'SuperfeedFeeds' && nav.current.id != null) {
-				const list = await getSuperfeedFeeds(nav.current.id);
+				const [list, superfeedsRes] = await Promise.all([
+					getSuperfeedFeeds(nav.current.id),
+					getAllSuperfeeds()
+				]);
 				superfeedFeedsList = list;
+				const superfeedsMap: Record<number, { id: number; name: string }[]> = {};
+				await Promise.all(
+					list.map(async (f) => {
+						const ids = await getSuperfeedIdsForFeed(f.id);
+						superfeedsMap[f.id] = ids
+							.map((id) => {
+								const s = superfeedsRes.find((s) => s.id === id);
+								return s ? { id: s.id, name: s.name } : null;
+							})
+							.filter(Boolean) as { id: number; name: string }[];
+					})
+				);
+				feedSuperfeeds = superfeedsMap;
 				loading = false;
 				return;
 			}
@@ -154,6 +172,19 @@
 					(acc: Record<number, Feed>, f: Feed) => ({ ...acc, [f.id]: f }),
 					{}
 				);
+				const superfeedsMap: Record<number, { id: number; name: string }[]> = {};
+				await Promise.all(
+					allFeeds.map(async (f) => {
+						const ids = await getSuperfeedIdsForFeed(f.id);
+						superfeedsMap[f.id] = ids
+							.map((id) => {
+								const s = allSuperfeeds.find((s) => s.id === id);
+								return s ? { id: s.id, name: s.name } : null;
+							})
+							.filter(Boolean) as { id: number; name: string }[];
+					})
+				);
+				feedSuperfeeds = superfeedsMap;
 			}
 
 			let newArticles: Article[] = [];
@@ -181,6 +212,17 @@
 			} else {
 				articles = newArticles;
 			}
+
+			// Load tags for displayed articles (batch for current page only)
+			const articleList = newArticles;
+			const tagMap: Record<number, TagType[]> = {};
+			await Promise.all(
+				articleList.map(async (a) => {
+					const t = await getArticleTags(a.id);
+					tagMap[a.id] = t;
+				})
+			);
+			articleTags = append ? { ...articleTags, ...tagMap } : tagMap;
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : String(e);
 			articleLoadError = msg;
@@ -409,6 +451,8 @@
 				{#each allFeeds as f (f.id)}
 					<FeedCard
 						feed={f}
+						superfeeds={feedSuperfeeds[f.id] ?? []}
+						onSuperfeedClick={(id, name) => nav.push({ type: 'Superfeed', id, name })}
 						onClick={() => nav.push({ type: 'Feed', id: f.id, name: f.name })}
 						onSettings={() => (settingsTarget = { type: 'feed', feed: f })}
 						onContextMenu={(e) => {
@@ -460,6 +504,8 @@
 				{#each superfeedFeedsList as f (f.id)}
 					<FeedCard
 						feed={f}
+						superfeeds={feedSuperfeeds[f.id] ?? []}
+						onSuperfeedClick={(id, name) => nav.push({ type: 'Superfeed', id, name })}
 						onClick={() => nav.push({ type: 'Feed', id: f.id, name: f.name })}
 						onSettings={() => (settingsTarget = { type: 'feed', feed: f })}
 						onContextMenu={(e) => {
@@ -516,6 +562,8 @@
 					<ArticleCard
 						{article}
 						feed={feeds[article.feed]}
+						tags={articleTags[article.id] ?? []}
+						onTagClick={(id, name) => nav.push({ type: 'Tag', id, name })}
 						onClick={() => openArticle(article)}
 						onToggleRead={() => handleToggleRead(article)}
 						onAddTag={() => {}}
