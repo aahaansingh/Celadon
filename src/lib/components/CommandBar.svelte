@@ -276,7 +276,7 @@
 				/>
 				<input
 					type="text"
-					placeholder="Search or enter command (\f, \s, \t, \a / [query]\a / \a:[query])..."
+					placeholder="Search or enter command"
 					bind:value={searchQuery}
 					oninput={handleInput}
 					onkeydown={handleKeydown}
@@ -288,7 +288,7 @@
 				<!-- Suggestions Dropdown -->
 				{#if showSuggestions && suggestions.length > 0}
 					<div
-						class="absolute top-full left-0 right-0 mt-2 bg-background/95 backdrop-blur-xl border border-border/50 rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200"
+						class="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200"
 					>
 						<div
 							class="p-2 border-b border-border/50 bg-muted/30 text-[10px] uppercase tracking-wider font-bold text-muted-foreground flex justify-between items-center"

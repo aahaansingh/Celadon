@@ -90,33 +90,60 @@
 				/>
 			</div>
 			<div>
-				<label for="feed-settings-type" class="text-xs font-heading font-bold text-muted-foreground block mb-1">Type</label>
-				<select
-					id="feed-settings-type"
-					bind:value={feedType}
-					class="w-full bg-muted border-none rounded-2xl px-4 py-2 font-body text-sm"
-				>
-					<option value="News">News (1D)</option>
-					<option value="Article">Article (3D)</option>
-					<option value="Essay">Essay (1W)</option>
-				</select>
+				<span class="text-xs font-heading font-bold text-muted-foreground block mb-1">Type</span>
+				<div class="flex gap-2 p-1 bg-muted rounded-2xl">
+					<button
+						type="button"
+						onclick={() => (feedType = 'News')}
+						class="flex-1 py-2 rounded-xl text-xs font-body font-medium transition-all {feedType === 'News'
+							? 'bg-background shadow-sm ring-1 ring-border text-primary'
+							: 'text-muted-foreground'}"
+					>
+						News (1D)
+					</button>
+					<button
+						type="button"
+						onclick={() => (feedType = 'Article')}
+						class="flex-1 py-2 rounded-xl text-xs font-body font-medium transition-all {feedType === 'Article'
+							? 'bg-background shadow-sm ring-1 ring-border text-primary'
+							: 'text-muted-foreground'}"
+					>
+						Article (3D)
+					</button>
+					<button
+						type="button"
+						onclick={() => (feedType = 'Essay')}
+						class="flex-1 py-2 rounded-xl text-xs font-body font-medium transition-all {feedType === 'Essay'
+							? 'bg-background shadow-sm ring-1 ring-border text-primary'
+							: 'text-muted-foreground'}"
+					>
+						Essay (1W)
+					</button>
+				</div>
 			</div>
 			<div>
 				<span class="text-xs font-heading font-bold text-muted-foreground block mb-2">Superfeeds</span>
 				{#if loading}
 					<p class="text-sm text-muted-foreground">Loading…</p>
 				{:else}
-					<div class="space-y-2 max-h-40 overflow-y-auto">
+					<div class="space-y-1 max-h-40 overflow-y-auto">
 						{#each superfeeds as s (s.id)}
-							<label class="flex items-center gap-2 cursor-pointer">
-								<input
-									type="checkbox"
-									checked={superfeedIds.has(s.id)}
-									onchange={() => toggleSuperfeed(s.id)}
-									class="rounded border-border"
-								/>
+							<button
+								type="button"
+								onclick={() => toggleSuperfeed(s.id)}
+								class="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors hover:bg-muted/50"
+							>
+								<span
+									class="w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors {superfeedIds.has(s.id)
+										? 'border-primary bg-primary/10'
+										: 'border-muted-foreground/50'}"
+								>
+									{#if superfeedIds.has(s.id)}
+										<span class="w-2 h-2 rounded-full bg-primary"></span>
+									{/if}
+								</span>
 								<span class="text-sm font-body">{s.name}</span>
-							</label>
+							</button>
 						{/each}
 					</div>
 				{/if}

@@ -315,11 +315,19 @@
 		}
 	}
 
-	async function handleAddFeed(url: string, feedType: 'News' | 'Article' | 'Essay' = 'News') {
+	async function handleAddFeed(url: string, feedType: 'News' | 'Article' | 'Essay' = 'News', selectedSuperfeedIds: number[] = []) {
 		try {
 			addingFeed = true;
 			errorMsg = null;
-			await addFeed(url, feedType);
+			await addFeed(url, feedType, 1); // Always add to "All" first
+			const feeds = await getAllFeeds();
+			const newFeed = feeds.find((f) => f.url === url);
+			if (newFeed) {
+				for (const id of selectedSuperfeedIds) {
+					if (id === 1) continue; // Already in All
+					await addFeedToSuperfeed(newFeed.id, id);
+				}
+			}
 			await loadData();
 		} catch (e: unknown) {
 			const msg = e instanceof Error ? e.message : String(e);
@@ -836,6 +844,8 @@
 		onAddFeed={handleAddFeed}
 		onCreateSuperfeed={handleCreateSuperfeed}
 		onCreateTag={handleCreateTag}
+		onOpmlComplete={() => loadData()}
+		superfeeds={allSuperfeeds}
 	/>
 </div>
 

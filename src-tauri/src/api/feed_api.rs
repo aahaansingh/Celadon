@@ -69,6 +69,12 @@ pub async fn create_feed(
     if name.contains('\\') {
         return Err(DbErr::Custom("Name cannot contain backslashes".to_owned()));
     }
+    // Prevent duplicate feed URL (existing non-deleted feed with same URL)
+    if let Ok(Some(_)) = get_feed_by_url(db, url.clone()).await {
+        return Err(DbErr::Custom(
+            "A feed with this URL already exists".to_owned(),
+        ));
+    }
     let insert = feed::ActiveModel {
         id: Set(id),
         url: Set(url.to_owned()),

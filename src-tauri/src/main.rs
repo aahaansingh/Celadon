@@ -111,6 +111,7 @@ fn main() {
             commands::undo::clear_undo,
             // opml commands
             commands::opml::import_opml,
+            commands::opml::import_opml_from_content,
             commands::opml::export_opml,
         ])
         .run(tauri::generate_context!())

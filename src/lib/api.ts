@@ -121,6 +121,7 @@ export const clearUndo = () => invoke<void>('clear_undo');
 
 // OPML
 export const importOpml = (path: string) => invoke<void>('import_opml', { path });
+export const importOpmlFromContent = (xml: string) => invoke<void>('import_opml_from_content', { xml });
 export const exportOpml = (path: string) => invoke<void>('export_opml', { path });
 
 export const createSuperfeed = (name: string) => invoke<void>('create_superfeed', { name });

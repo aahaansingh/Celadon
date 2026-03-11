@@ -4,45 +4,62 @@ use chrono::Utc;
 use opml::{Body, Head, Outline, OPML};
 use sea_orm::DbConn;
 
+/// Ensure feed is in superfeed; no-op if already linked.
+async fn ensure_feed_in_superfeed(db: &DbConn, feed_id: i32, superfeed_id: i32) -> Result<(), String> {
+    let ids = feed_api::get_superfeed_ids_for_feed(db, feed_id)
+        .await
+        .map_err(|e| e.to_string())?;
+    if ids.contains(&superfeed_id) {
+        return Ok(());
+    }
+    feed_api::add_feed_to_superfeed(db, feed_id, superfeed_id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 pub async fn import_opml_internal(db: &DbConn, path: String) -> Result<(), String> {
     let xml = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    import_opml_from_xml(db, xml).await
+}
 
-    let document = OPML::from_str(&xml).map_err(|e| e.to_string())?;
+pub async fn import_opml_from_xml(db: &DbConn, xml: String) -> Result<(), String> {
+    let xml = xml.trim();
+    if xml.is_empty() {
+        return Err("OPML content is empty".to_string());
+    }
+    let document = OPML::from_str(xml).map_err(|e| e.to_string())?;
+
+    const MAX_OUTLINES: usize = 10_000;
+    let total_outlines = document.body.outlines.len()
+        + document
+            .body
+            .outlines
+            .iter()
+            .map(|o| o.outlines.len())
+            .sum::<usize>();
+    if total_outlines > MAX_OUTLINES {
+        return Err(format!(
+            "OPML has too many feeds ({}). Maximum is {}.",
+            total_outlines, MAX_OUTLINES
+        ));
+    }
 
     let now = Utc::now();
+    const YIELD_EVERY: usize = 30;
+    let mut new_feed_ids = Vec::new();
 
-    for outline in document.body.outlines {
+    for (idx, outline) in document.body.outlines.iter().enumerate() {
+        if idx > 0 && idx % YIELD_EVERY == 0 {
+            tokio::task::yield_now().await;
+        }
         if outline.xml_url.is_some() {
-            let feed_id = feed_api::feed_max_id(db).await.unwrap_or(0) + 1;
             let url = outline.xml_url.clone().unwrap_or_default();
             let name = outline.text.clone();
-            let _ = feed_api::create_feed(
-                db,
-                feed_id,
-                url,
-                name,
-                "Import".to_string(),
-                now,
-                now,
-                true,
-                FeedType::News,
-            )
-            .await;
-            let _ = feed_api::add_feed_to_superfeed(db, feed_id, 1).await;
-        } else {
-            let superfeed_name = outline
-                .title
-                .clone()
-                .unwrap_or_else(|| outline.text.clone());
-            let sf_id = superfeed_api::superfeed_max_id(db).await.unwrap_or(0) + 1;
-            let _ = superfeed_api::create_superfeed(db, sf_id, superfeed_name).await;
-
-            for sub_outline in outline.outlines {
-                if sub_outline.xml_url.is_some() {
+            let feed_id = match feed_api::get_feed_by_url(db, url.clone()).await.map_err(|e| e.to_string())? {
+                Some(existing) => existing.id,
+                None => {
                     let feed_id = feed_api::feed_max_id(db).await.unwrap_or(0) + 1;
-                    let url = sub_outline.xml_url.clone().unwrap_or_default();
-                    let name = sub_outline.text.clone();
-                    let _ = feed_api::create_feed(
+                    feed_api::create_feed(
                         db,
                         feed_id,
                         url,
@@ -53,10 +70,57 @@ pub async fn import_opml_internal(db: &DbConn, path: String) -> Result<(), Strin
                         true,
                         FeedType::News,
                     )
-                    .await;
-                    let _ = feed_api::add_feed_to_superfeed(db, feed_id, sf_id).await;
+                    .await
+                    .map_err(|e| e.to_string())?;
+                    new_feed_ids.push(feed_id);
+                    feed_id
+                }
+            };
+            ensure_feed_in_superfeed(db, feed_id, 1).await?;
+        } else {
+            let superfeed_name = outline
+                .title
+                .clone()
+                .unwrap_or_else(|| outline.text.clone());
+            let sf_id = superfeed_api::superfeed_max_id(db).await.unwrap_or(0) + 1;
+            let _ = superfeed_api::create_superfeed(db, sf_id, superfeed_name.clone()).await;
+
+            for sub_outline in &outline.outlines {
+                if sub_outline.xml_url.is_some() {
+                    let url = sub_outline.xml_url.clone().unwrap_or_default();
+                    let name = sub_outline.text.clone();
+                    let feed_id = match feed_api::get_feed_by_url(db, url.clone()).await.map_err(|e| e.to_string())? {
+                        Some(existing) => existing.id,
+                        None => {
+                            let feed_id = feed_api::feed_max_id(db).await.unwrap_or(0) + 1;
+                            feed_api::create_feed(
+                                db,
+                                feed_id,
+                                url,
+                                name,
+                                "Import".to_string(),
+                                now,
+                                now,
+                                true,
+                                FeedType::News,
+                            )
+                            .await
+                            .map_err(|e| e.to_string())?;
+                            new_feed_ids.push(feed_id);
+                            feed_id
+                        }
+                    };
+                    ensure_feed_in_superfeed(db, feed_id, sf_id).await?;
                 }
             }
+        }
+    }
+
+    // Fetch recent articles for newly imported feeds.
+    if !new_feed_ids.is_empty() {
+        if let Err(e) = crate::syndication::syndicator::refresh_feeds_by_ids(db, new_feed_ids).await
+        {
+            eprintln!("OPML import: failed to fetch articles for some feeds: {}", e);
         }
     }
 

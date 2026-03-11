@@ -245,6 +245,22 @@ pub async fn refresh_all_feeds(db: &DbConn) -> Result<(), DbErr> {
     Ok(())
 }
 
+/// Re-fetch the given feeds by id (fetch from URL and insert articles). Used after OPML import.
+/// One failing feed does not stop the rest.
+pub async fn refresh_feeds_by_ids(db: &DbConn, feed_ids: Vec<i32>) -> Result<(), DbErr> {
+    const ALL_SUPERFEED_ID: i32 = 1;
+    for id in feed_ids {
+        if let Ok(feed) = feed_api::get_feed(db, id).await {
+            if let Err(e) =
+                url_to_feed(db, feed.url.clone(), ALL_SUPERFEED_ID, feed.feed_type.clone()).await
+            {
+                eprintln!("refresh_feeds_by_ids: feed id {} ({}) failed: {}", id, feed.url, e);
+            }
+        }
+    }
+    Ok(())
+}
+
 pub fn unwrap_atom_content(
     content_opt: Option<atom_syndication::Content>,
     default: String,

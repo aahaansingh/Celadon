@@ -37,5 +37,13 @@ pub async fn create_tables(db: &DbConn) -> Result<(), DbErr> {
     ))
     .await?;
 
+    // Enforce at most one non-deleted feed per URL
+    db.execute(sea_orm::Statement::from_string(
+        db.get_database_backend(),
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_feed_url_not_deleted ON Feed(url) WHERE deleted = 0;"
+            .to_owned(),
+    ))
+    .await?;
+
     Ok(())
 }
