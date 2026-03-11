@@ -5,6 +5,7 @@ use crate::models::feed_superfeed::Entity as FeedSuperfeed;
 use crate::models::{article, feed, feed_superfeed};
 use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
+use sea_orm::prelude::Expr;
 use sea_orm::{InsertResult, QueryFilter, QueryOrder, QuerySelect, Set};
 
 pub enum FeedStrFields {
@@ -176,6 +177,12 @@ pub async fn delete_feed(db: &DbConn, id: i32) -> Result<(), DbErr> {
     let mut feed_active: feed::ActiveModel = feed_model.into();
     feed_active.deleted = Set(true);
     feed_active.update(db).await?;
+    // Soft-delete all articles in this feed so they don't show as "Unknown Feed" and can be restored on undo
+    Article::update_many()
+        .col_expr(article::Column::Deleted, Expr::value(true))
+        .filter(article::Column::Feed.eq(id))
+        .exec(db)
+        .await?;
     Ok(())
 }
 
@@ -186,6 +193,13 @@ pub async fn undelete_feed(db: &DbConn, id: i32) -> Result<(), DbErr> {
         feed_active.deleted = Set(false);
         feed_active.update(db).await?;
     }
+    // Restore all articles that belonged to this feed and were soft-deleted with it
+    Article::update_many()
+        .col_expr(article::Column::Deleted, Expr::value(false))
+        .filter(article::Column::Feed.eq(id))
+        .filter(article::Column::Deleted.eq(true))
+        .exec(db)
+        .await?;
     Ok(())
 }
 

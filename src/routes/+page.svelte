@@ -26,6 +26,12 @@
 		untagArticle,
 		getArticleTags,
 		getSuperfeedIdsForFeed,
+		getSuperfeedFeeds,
+		deleteFeed,
+		deleteSuperfeed,
+		deleteTag,
+		readAllArticlesInFeed,
+		undo,
 		type Article,
 		type Feed,
 		type Superfeed,
@@ -46,6 +52,7 @@
 	import TagSettingsModal from '$lib/components/TagSettingsModal.svelte';
 	import AddTagToArticleModal from '$lib/components/AddTagToArticleModal.svelte';
 	import AddFeedToSuperfeedModal from '$lib/components/AddFeedToSuperfeedModal.svelte';
+	import ConfirmDeleteModal from '$lib/components/ConfirmDeleteModal.svelte';
 
 	let articles = $state<Article[]>([]);
 	let feeds = $state<Record<number, Feed>>({});
@@ -66,12 +73,28 @@
 		y: number;
 		type: 'feed';
 		feedId: number;
+		feed?: Feed;
 	} | {
 		x: number;
 		y: number;
 		type: 'article';
 		article: Article;
+	} | {
+		x: number;
+		y: number;
+		type: 'superfeed';
+		superfeedId: number;
+		superfeed?: Superfeed;
+	} | {
+		x: number;
+		y: number;
+		type: 'tag';
+		tagId: number;
+		tag?: TagType;
 	} | null>(null);
+	let pendingDelete = $state<{ type: 'feed' | 'superfeed' | 'tag'; id: number; name: string } | null>(null);
+	let superfeedFeedsList = $state<Feed[]>([]);
+	let feedSuperfeedsList = $state<Superfeed[]>([]);
 	let settingsTarget = $state<
 		| { type: 'feed'; feed: Feed }
 		| { type: 'superfeed'; superfeed: Superfeed }
@@ -100,6 +123,25 @@
 		}
 
 		try {
+			if (nav.current.type === 'SuperfeedFeeds' && nav.current.id != null) {
+				const list = await getSuperfeedFeeds(nav.current.id);
+				superfeedFeedsList = list;
+				loading = false;
+				return;
+			}
+			superfeedFeedsList = [];
+
+			if (nav.current.type === 'FeedSuperfeeds' && nav.current.id != null) {
+				const [ids, superfeedsRes] = await Promise.all([
+					getSuperfeedIdsForFeed(nav.current.id),
+					getAllSuperfeeds()
+				]);
+				feedSuperfeedsList = superfeedsRes.filter((s) => ids.includes(s.id));
+				loading = false;
+				return;
+			}
+			feedSuperfeedsList = [];
+
 			if (!append) {
 				const [feedsRes, superfeedsRes, tagsRes] = await Promise.all([
 					getAllFeeds(),
@@ -184,9 +226,21 @@
 			.then(() => loadData())
 			.catch(() => {});
 
+		// Undo: Cmd+Z (Mac) or Ctrl+Z (Windows)
+		const handleKeydown = (e: KeyboardEvent) => {
+			if (e.key === 'z' && (e.metaKey || e.ctrlKey)) {
+				e.preventDefault();
+				undo()
+					.then(() => loadData())
+					.catch(() => {});
+			}
+		};
+		document.addEventListener('keydown', handleKeydown);
+
 		return () => {
 			observer.disconnect();
 			clearInterval(intervalId);
+			document.removeEventListener('keydown', handleKeydown);
 		};
 	});
 
@@ -361,7 +415,7 @@
 						onClick={() => nav.push({ type: 'Feed', id: f.id, name: f.name })}
 						onSettings={() => (settingsTarget = { type: 'feed', feed: f })}
 						onContextMenu={(e) => {
-							contextMenu = { x: e.clientX, y: e.clientY, type: 'feed', feedId: f.id };
+							contextMenu = { x: e.clientX, y: e.clientY, type: 'feed', feedId: f.id, feed: f };
 						}}
 					/>
 				{/each}
@@ -373,6 +427,15 @@
 						superfeed={s}
 						onClick={() => nav.push({ type: 'Superfeed', id: s.id, name: s.name })}
 						onSettings={() => (settingsTarget = { type: 'superfeed', superfeed: s })}
+						onContextMenu={(e) => {
+							contextMenu = {
+								x: e.clientX,
+								y: e.clientY,
+								type: 'superfeed',
+								superfeedId: s.id,
+								superfeed: s
+							};
+						}}
 					/>
 				{/each}
 			</div>
@@ -383,6 +446,47 @@
 						tag={t}
 						onClick={() => nav.push({ type: 'Tag', id: t.id, name: t.name })}
 						onSettings={() => (settingsTarget = { type: 'tag', tag: t })}
+						onContextMenu={(e) => {
+							contextMenu = {
+								x: e.clientX,
+								y: e.clientY,
+								type: 'tag',
+								tagId: t.id,
+								tag: t
+							};
+						}}
+					/>
+				{/each}
+			</div>
+		{:else if nav.current.type === 'SuperfeedFeeds' && nav.current.id != null}
+			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-6">
+				{#each superfeedFeedsList as f (f.id)}
+					<FeedCard
+						feed={f}
+						onClick={() => nav.push({ type: 'Feed', id: f.id, name: f.name })}
+						onSettings={() => (settingsTarget = { type: 'feed', feed: f })}
+						onContextMenu={(e) => {
+							contextMenu = { x: e.clientX, y: e.clientY, type: 'feed', feedId: f.id, feed: f };
+						}}
+					/>
+				{/each}
+			</div>
+		{:else if nav.current.type === 'FeedSuperfeeds' && nav.current.id != null}
+			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-6">
+				{#each feedSuperfeedsList as s (s.id)}
+					<SuperfeedCard
+						superfeed={s}
+						onClick={() => nav.push({ type: 'Superfeed', id: s.id, name: s.name })}
+						onSettings={() => (settingsTarget = { type: 'superfeed', superfeed: s })}
+						onContextMenu={(e) => {
+							contextMenu = {
+								x: e.clientX,
+								y: e.clientY,
+								type: 'superfeed',
+								superfeedId: s.id,
+								superfeed: s
+							};
+						}}
 					/>
 				{/each}
 			</div>
@@ -446,7 +550,7 @@
 					</div>
 				{:else if endOfList && articles.length > 0}
 					<div class="text-[10px] uppercase tracking-[0.3em] text-muted-foreground/30 font-bold">
-						End of the trail
+						Bottom of the Cabinet
 					</div>
 				{/if}
 			</div>
@@ -456,6 +560,11 @@
 	<ArticleViewer article={selectedArticle} onClose={() => (selectedArticle = null)} />
 
 	{#if contextMenu}
+		{@const cm = contextMenu}
+		{@const feedUrlToCopy = cm.type === 'feed' ? cm.feed?.url : undefined}
+		{@const feedForMenu = cm.type === 'feed' ? cm : null}
+		{@const superfeedForMenu = cm.type === 'superfeed' ? cm : null}
+		{@const tagForMenu = cm.type === 'tag' ? cm : null}
 		<!-- svelte-ignore a11y_click_events_have_key_events -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div
@@ -467,14 +576,19 @@
 			}}
 		></div>
 		<ContextMenu
-			x={contextMenu.x}
-			y={contextMenu.y}
-			type={contextMenu.type}
-			feedId={contextMenu.type === 'feed' ? contextMenu.feedId : undefined}
+			x={cm.x}
+			y={cm.y}
+			type={cm.type}
+			feed={cm.type === 'feed' ? cm.feed : undefined}
+			feedId={cm.type === 'feed' ? cm.feedId : undefined}
+			superfeedId={cm.type === 'superfeed' ? cm.superfeedId : undefined}
+			superfeed={cm.type === 'superfeed' ? cm.superfeed : undefined}
+			tagId={cm.type === 'tag' ? cm.tagId : undefined}
+			tag={cm.type === 'tag' ? cm.tag : undefined}
 			articleActions={
-				contextMenu.type === 'article'
+				cm.type === 'article'
 					? (() => {
-							const a = contextMenu.article;
+							const a = cm.article;
 							return {
 								onToggleRead: () => handleToggleRead(a),
 								onAddTag: async () => {
@@ -503,10 +617,27 @@
 						})()
 					: undefined
 			}
+			onCopyFeedLink={
+				feedUrlToCopy
+					? () => {
+							navigator.clipboard.writeText(feedUrlToCopy);
+						}
+					: undefined
+			}
+			onShowSuperfeeds={
+				feedForMenu
+					? () => {
+							const feedId = feedForMenu.feedId;
+							const feedName = feedForMenu.feed?.name ?? feeds[feedId]?.name ?? 'Feed';
+							contextMenu = null;
+							nav.push({ type: 'FeedSuperfeeds', id: feedId, name: `Superfeeds for ${feedName}` });
+						}
+					: undefined
+			}
 			onOpenAddToSuperfeed={
-				contextMenu.type === 'feed'
+				feedForMenu
 					? async (feedId) => {
-							const feedName = feeds[feedId]?.name ?? 'Feed';
+							const feedName = feedForMenu.feed?.name ?? feeds[feedId]?.name ?? 'Feed';
 							contextMenu = null;
 							try {
 								const ids = await getSuperfeedIdsForFeed(feedId);
@@ -517,6 +648,47 @@
 								errorMsg = `Couldn't load superfeeds for this feed. ${msg}`;
 								addToSuperfeedTargetData = { feedId, feedName, assignedSuperfeedIds: [] };
 							}
+						}
+					: undefined
+			}
+			onMarkAllReadFeed={
+				feedForMenu
+					? (feedId) => {
+							contextMenu = null;
+							readAllArticlesInFeed(feedId).then(() => loadData()).catch((e) => console.error(e));
+						}
+					: undefined
+			}
+			onDeleteFeed={
+				feedForMenu
+					? (feedId) => {
+							const name = feedForMenu.feed?.name ?? feeds[feedId]?.name ?? 'Feed';
+							pendingDelete = { type: 'feed', id: feedId, name };
+						}
+					: undefined
+			}
+			onShowFeedsInSuperfeed={
+				superfeedForMenu
+					? (superfeedId) => {
+							const name = superfeedForMenu.superfeed?.name ?? allSuperfeeds.find((s) => s.id === superfeedId)?.name ?? 'Superfeed';
+							contextMenu = null;
+							nav.push({ type: 'SuperfeedFeeds', id: superfeedId, name: `Feeds in ${name}` });
+						}
+					: undefined
+			}
+			onDeleteSuperfeed={
+				superfeedForMenu && superfeedForMenu.superfeedId !== ALL_SUPERFEED_ID
+					? (superfeedId) => {
+							const name = superfeedForMenu.superfeed?.name ?? allSuperfeeds.find((s) => s.id === superfeedId)?.name ?? 'Superfeed';
+							pendingDelete = { type: 'superfeed', id: superfeedId, name };
+						}
+					: undefined
+			}
+			onDeleteTag={
+				tagForMenu
+					? (tagId) => {
+							const name = tagForMenu.tag?.name ?? allTags.find((t) => t.id === tagId)?.name ?? 'Tag';
+							pendingDelete = { type: 'tag', id: tagId, name };
 						}
 					: undefined
 			}
@@ -543,6 +715,52 @@
 			assignedSuperfeedIds={addToSuperfeedTargetData.assignedSuperfeedIds}
 			onApply={handleSuperfeedModalApply}
 			onClose={() => (addToSuperfeedTargetData = null)}
+		/>
+	{/if}
+
+	{#if pendingDelete}
+		<ConfirmDeleteModal
+			title="Delete {pendingDelete.type}"
+			message="Are you sure you want to delete {pendingDelete.name}? You can undo with Cmd+Z (Mac) or Ctrl+Z (Windows)."
+			confirmLabel="Delete"
+			onConfirm={async () => {
+				const p = pendingDelete;
+				pendingDelete = null;
+				if (!p) return;
+				try {
+					if (p.type === 'feed') {
+						await deleteFeed(p.id);
+						// Navigate off if we're viewing the deleted feed
+						if (nav.current.type === 'Feed' && nav.current.id === p.id) {
+							nav.push({ type: 'FeedsList', name: 'Feeds' });
+						}
+						// Remove from local lists so UI updates immediately
+						allFeeds = allFeeds.filter((f) => f.id !== p.id);
+						feeds = allFeeds.reduce(
+							(acc: Record<number, Feed>, f: Feed) => ({ ...acc, [f.id]: f }),
+							{}
+						);
+						superfeedFeedsList = superfeedFeedsList.filter((f) => f.id !== p.id);
+					} else if (p.type === 'superfeed') {
+						await deleteSuperfeed(p.id);
+						if (nav.current.type === 'Superfeed' && nav.current.id === p.id) {
+							nav.push({ type: 'SuperfeedsList', name: 'Superfeeds' });
+						}
+						allSuperfeeds = allSuperfeeds.filter((s) => s.id !== p.id);
+						feedSuperfeedsList = feedSuperfeedsList.filter((s) => s.id !== p.id);
+					} else if (p.type === 'tag') {
+						await deleteTag(p.id);
+						if (nav.current.type === 'Tag' && nav.current.id === p.id) {
+							nav.push({ type: 'TagsList', name: 'Tags' });
+						}
+						allTags = allTags.filter((t) => t.id !== p.id);
+					}
+					await loadData();
+				} catch (e) {
+					errorMsg = e instanceof Error ? e.message : String(e);
+				}
+			}}
+			onCancel={() => (pendingDelete = null)}
 		/>
 	{/if}
 

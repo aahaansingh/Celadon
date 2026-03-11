@@ -96,17 +96,24 @@ export const addFeedToSuperfeed = (feedId: number, superfeedId: number) =>
 	invoke<void>('add_feed_to_superfeed', { feedId, superfeedId });
 export const removeFeedFromSuperfeed = (feedId: number, superfeedId: number) =>
 	invoke<void>('remove_feed_from_superfeed', { feedId, superfeedId });
+export const deleteFeed = (id: number) => invoke<void>('delete_feed', { id });
+export const readAllArticlesInFeed = (feedId: number) =>
+	invoke<void>('read_all_articles_in_feed', { feedId });
 
 // Superfeed Commands
 export const getAllSuperfeeds = () => invoke<Superfeed[]>('get_all_superfeeds');
 export const searchSuperfeeds = (query: string) => invoke<Superfeed[]>('search_superfeeds', { query });
 export const renameSuperfeed = (id: number, name: string) =>
 	invoke<void>('rename_superfeed', { id, name });
+export const deleteSuperfeed = (id: number) => invoke<void>('delete_superfeed', { id });
+export const getSuperfeedFeeds = (id: number, num?: number) =>
+	invoke<Feed[]>('get_superfeed_feeds', { id, num });
 
 // Tag Commands
 export const getAllTags = () => invoke<Tag[]>('get_all_tags');
 export const searchTags = (query: string) => invoke<Tag[]>('search_tags', { query });
 export const renameTag = (id: number, name: string) => invoke<void>('rename_tag', { id, name });
+export const deleteTag = (id: number) => invoke<void>('delete_tag', { id });
 
 // Undo
 export const undo = () => invoke<void>('undo');
