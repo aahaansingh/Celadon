@@ -42,7 +42,7 @@
 			onclick={(e) => e.stopPropagation()}
 		>
 			<div class="px-6 py-4 border-b border-border flex items-center justify-between">
-				<h2 class="font-heading font-bold uppercase tracking-widest text-sm">Fill Your Cabinet</h2>
+				<h2 class="font-heading font-bold text-sm">Fill Your Cabinet</h2>
 				<button onclick={onClose} class="p-1 hover:bg-muted rounded-full transition-colors">
 					<X class="w-4 h-4" />
 				</button>
@@ -53,27 +53,27 @@
 				<div class="flex p-1 bg-muted rounded-xl gap-1">
 					<button
 						onclick={() => (tab = 'feed')}
-						class="flex-1 py-2 text-xs font-heading font-bold uppercase tracking-wider rounded-lg transition-all {tab ===
+						class="flex-1 py-2 text-xs font-heading font-bold rounded-lg transition-all {tab ===
 						'feed'
-							? 'bg-card shadow-sm text-primary'
+							? 'bg-background shadow-md ring-1 ring-border text-primary'
 							: 'text-muted-foreground'}"
 					>
 						New Feed
 					</button>
 					<button
 						onclick={() => (tab = 'superfeed')}
-						class="flex-1 py-2 text-xs font-heading font-bold uppercase tracking-wider rounded-lg transition-all {tab ===
+						class="flex-1 py-2 text-xs font-heading font-bold rounded-lg transition-all {tab ===
 						'superfeed'
-							? 'bg-card shadow-sm text-primary'
+							? 'bg-background shadow-md ring-1 ring-border text-primary'
 							: 'text-muted-foreground'}"
 					>
 						New Superfeed
 					</button>
 					<button
 						onclick={() => (tab = 'tag')}
-						class="flex-1 py-2 text-xs font-heading font-bold uppercase tracking-wider rounded-lg transition-all {tab ===
+						class="flex-1 py-2 text-xs font-heading font-bold rounded-lg transition-all {tab ===
 						'tag'
-							? 'bg-card shadow-sm text-primary'
+							? 'bg-background shadow-md ring-1 ring-border text-primary'
 							: 'text-muted-foreground'}"
 					>
 						New Tag
@@ -84,9 +84,9 @@
 					<div class="space-y-2">
 						<label
 							for="add-input"
-							class="text-xs font-heading font-bold uppercase tracking-widest text-muted-foreground ml-1"
+							class="text-xs font-heading font-bold text-muted-foreground ml-1"
 						>
-							{tab === 'feed' ? 'RSS/Atom URL' : tab === 'superfeed' ? 'Superfeed Name' : 'Tag Name'}
+							{tab === 'feed' ? 'RSS/Atom URL' : tab === 'superfeed' ? 'Superfeed name' : 'Tag name'}
 						</label>
 						<div class="relative">
 							<input
@@ -111,7 +111,7 @@
 
 					{#if tab === 'feed'}
 						<div class="space-y-2">
-							<label for="add-feed-type" class="text-xs font-heading font-bold uppercase tracking-widest text-muted-foreground ml-1">Type</label>
+							<label for="add-feed-type" class="text-xs font-heading font-bold text-muted-foreground ml-1">Type</label>
 							<select
 								id="add-feed-type"
 								bind:value={feedType}
@@ -136,7 +136,7 @@
 				<button
 					onclick={handleSubmit}
 					disabled={!inputVal.trim()}
-					class="w-full py-4 bg-primary hover:bg-primary-dark disabled:opacity-50 disabled:hover:bg-primary text-white font-heading font-bold uppercase tracking-[0.2em] beveled flex items-center justify-center gap-3 transition-all"
+					class="w-full py-4 bg-primary hover:bg-primary-dark disabled:opacity-50 disabled:hover:bg-primary text-white font-heading font-bold beveled flex items-center justify-center gap-3 transition-all"
 				>
 					<Plus class="w-5 h-5" />
 					<span>Confirm</span>

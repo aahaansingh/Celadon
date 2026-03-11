@@ -84,7 +84,7 @@
 			<p class="text-xs text-muted-foreground line-clamp-2 font-body">{article.name}</p>
 			{#if tags.length > 0}
 				<div class="space-y-1">
-					<p class="text-[10px] font-heading uppercase tracking-wider text-muted-foreground">Select tags</p>
+					<p class="text-[10px] font-heading text-muted-foreground">Select tags</p>
 					<div class="max-h-40 overflow-y-auto space-y-0.5">
 						{#each tags as tag (tag.id)}
 							<button
@@ -110,7 +110,7 @@
 				</div>
 			{/if}
 			<div class="space-y-2">
-				<p class="text-[10px] font-heading uppercase tracking-wider text-muted-foreground">Create new tag</p>
+				<p class="text-[10px] font-heading text-muted-foreground">Create new tag</p>
 				<div class="flex gap-2">
 					<input
 						type="text"

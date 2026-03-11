@@ -66,7 +66,7 @@
 			<p class="text-xs text-muted-foreground line-clamp-2 font-body">{feedName}</p>
 			{#if superfeeds.length > 0}
 				<div class="space-y-1">
-					<p class="text-[10px] font-heading uppercase tracking-wider text-muted-foreground">Select superfeeds</p>
+					<p class="text-[10px] font-heading text-muted-foreground">Select superfeeds</p>
 					<div class="max-h-48 overflow-y-auto space-y-0.5">
 						{#each superfeeds as s (s.id)}
 							<button

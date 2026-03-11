@@ -442,8 +442,8 @@
 	<main class="container mx-auto pb-10">
 		{#if loading}
 			<div class="flex items-center justify-center h-64">
-				<div class="animate-pulse text-primary font-heading uppercase tracking-widest text-sm">
-					Gathering Articles...
+				<div class="animate-pulse text-primary font-heading text-sm">
+					Gathering articles…
 				</div>
 			</div>
 		{:else if nav.current.type === 'FeedsList'}

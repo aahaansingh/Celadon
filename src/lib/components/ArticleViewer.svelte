@@ -33,7 +33,7 @@
 			<div class="flex items-center gap-2">
 				<button
 					onclick={() => (mode = mode === 'simple' ? 'full' : 'simple')}
-					class="px-4 py-2 bg-muted hover:bg-muted/80 rounded-xl text-xs font-heading font-bold uppercase tracking-wider transition-all"
+					class="px-4 py-2 bg-muted hover:bg-muted/80 rounded-xl text-xs font-heading font-bold transition-all"
 				>
 					{mode === 'simple' ? 'Full Mode' : 'Simple Mode'}
 				</button>

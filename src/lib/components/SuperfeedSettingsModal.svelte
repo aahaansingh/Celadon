@@ -44,14 +44,14 @@
 		onclick={(e) => e.stopPropagation()}
 	>
 		<div class="px-6 py-4 border-b border-border flex items-center justify-between">
-			<h2 class="font-heading font-bold uppercase tracking-widest text-sm">Superfeed settings</h2>
+			<h2 class="font-heading font-bold text-sm">Superfeed settings</h2>
 			<button onclick={onClose} class="p-1 hover:bg-muted rounded-full transition-colors">
 				<X class="w-4 h-4" />
 			</button>
 		</div>
 		<div class="p-6 space-y-4">
 			<div>
-				<label for="superfeed-settings-name" class="text-xs font-heading font-bold uppercase tracking-widest text-muted-foreground block mb-1">Name</label>
+				<label for="superfeed-settings-name" class="text-xs font-heading font-bold text-muted-foreground block mb-1">Name</label>
 				<input
 					id="superfeed-settings-name"
 					type="text"
@@ -63,7 +63,7 @@
 				<button
 					onclick={handleSave}
 					disabled={saving}
-					class="flex-1 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white font-heading font-bold uppercase tracking-wider rounded-xl"
+					class="flex-1 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white font-heading font-bold rounded-xl"
 				>
 					{saving ? 'Saving…' : 'Save'}
 				</button>
