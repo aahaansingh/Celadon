@@ -38,6 +38,9 @@ fn main() {
                 // Ensure the default "All" superfeed (ID 1) exists
                 let _ = api::superfeed_api::create_superfeed(&db_conn, 1, "All".to_owned()).await;
 
+                // Rebuild FTS so superfeed_fts (and others) are populated after default data exists
+                let _ = models::create_tables::rebuild_fts_indexes(&db_conn).await;
+
                 api::article_api::clean_expired_articles(&db_conn)
                     .await
                     .unwrap_or(());
@@ -56,6 +59,12 @@ fn main() {
                 api::tag_api::cleanup_deleted_tags(&db_conn)
                     .await
                     .unwrap_or(());
+                api::article_api::delete_articles_older_than_retention(&db_conn)
+                    .await
+                    .ok();
+                api::article_api::ensure_article_cap(&db_conn, api::article_api::ARTICLE_CAP)
+                    .await
+                    .ok();
             });
 
             app.manage(db_conn);

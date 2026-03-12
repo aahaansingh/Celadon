@@ -4,7 +4,7 @@ use crate::models::tag::Entity as Tag;
 use crate::models::tag_article::Entity as TagArticle;
 use crate::models::{article, tag, tag_article};
 use sea_orm::entity::prelude::*;
-use sea_orm::{DeleteResult, InsertResult, JoinType, QueryFilter, QueryOrder, QuerySelect, Set};
+use sea_orm::{ConnectionTrait, DeleteResult, InsertResult, JoinType, QueryFilter, QueryOrder, QuerySelect, Set};
 
 pub async fn get_tag(db: &DbConn, id: i32) -> Result<tag::Model, DbErr> {
     let retrieved_tag = Tag::find_by_id(id)
@@ -162,8 +162,39 @@ pub async fn get_articles(
 }
 
 pub async fn search_tags(db: &DbConn, query: String) -> Result<Vec<tag::Model>, DbErr> {
+    let trimmed = query.trim();
+    if trimmed.is_empty() {
+        return Ok(vec![]);
+    }
+    let terms: Vec<String> = trimmed
+        .split_whitespace()
+        .map(|s| s.replace('"', "\"\""))
+        .filter(|s| !s.is_empty())
+        .collect();
+    if terms.is_empty() {
+        return Ok(vec![]);
+    }
+    let fts_query = terms
+        .iter()
+        .map(|t| format!("\"{}\"", t))
+        .collect::<Vec<_>>()
+        .join(" OR ");
+    let backend = db.get_database_backend();
+    let stmt = sea_orm::Statement::from_sql_and_values(
+        backend,
+        "SELECT rowid FROM tag_fts WHERE tag_fts MATCH ?",
+        [sea_orm::Value::String(Some(Box::new(fts_query)))],
+    );
+    let rows = db.query_all(stmt).await?;
+    let ids: Vec<i32> = rows
+        .into_iter()
+        .filter_map(|r| r.try_get_by_index::<i32>(0).ok())
+        .collect();
+    if ids.is_empty() {
+        return Ok(vec![]);
+    }
     Tag::find()
-        .filter(tag::Column::Name.contains(&query))
+        .filter(tag::Column::Id.is_in(ids))
         .filter(tag::Column::Deleted.eq(false))
         .all(db)
         .await

@@ -65,15 +65,22 @@ async fn seed_from_test_items(db: &DbConn) -> Result<(), Box<dyn std::error::Err
     }
 
     // 4. Create some read articles and tags for testing filters
-    // Mark the first article of the first feed as read
-    let all_articles = article::Entity::find().all(db).await?;
-    if !all_articles.is_empty() {
-        article_api::read_article(db, all_articles[0].id).await?;
-
-        // Create a tag and tag the second article
+    // Make the first feed have exactly one read article (backloaded items may be inserted as read)
+    let all_feeds = feed_api::get_all_feeds(db).await?;
+    if !all_feeds.is_empty() {
+        let first_feed_id = all_feeds[0].id;
+        let articles_for_first_feed =
+            feed_api::get_articles(db, first_feed_id, ReadFilter::All, None, None).await?;
+        for a in &articles_for_first_feed {
+            let _ = article_api::unread_article(db, a.id).await;
+        }
+        if !articles_for_first_feed.is_empty() {
+            article_api::read_article(db, articles_for_first_feed[0].id).await?;
+        }
+        // Create a tag and tag the second article of the first feed (so Tag 1 has 1 article)
         tag_api::create_tag(db, 1, "Testing".to_owned()).await?;
-        if all_articles.len() > 1 {
-            tag_api::tag_article(db, 1, all_articles[1].id).await?;
+        if articles_for_first_feed.len() > 1 {
+            tag_api::tag_article(db, 1, articles_for_first_feed[1].id).await?;
         }
     }
 

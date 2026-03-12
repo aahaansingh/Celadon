@@ -1,9 +1,16 @@
 use crate::models::article::Entity as Article;
 use crate::models::article::ReadFilter;
 use crate::models::{article, tag};
+use crate::models::tag_article;
 use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
-use sea_orm::{InsertResult, QueryFilter, QueryOrder, QuerySelect, Set};
+use sea_orm::sea_query::{Expr as SeaExpr, Query};
+use sea_orm::{ConnectionTrait, InsertResult, QueryFilter, QueryOrder, QuerySelect, Set};
+
+/// Maximum number of non-deleted articles to retain; oldest untagged are pruned when over.
+pub const ARTICLE_CAP: u32 = 100_000;
+/// Articles older than this many days are eligible for retention delete if untagged.
+pub const RETENTION_DAYS: i64 = 365;
 
 // Sort by "urgency" ratio (now-published)/(expiry-published). When expiry_at <= published
 // the ratio would be NULL/division-by-zero; use 1.0 so those rows sort at end.
@@ -133,10 +140,72 @@ pub async fn cleanup_deleted_articles(db: &DbConn) -> Result<(), DbErr> {
     Ok(())
 }
 
+/// Count of non-deleted articles.
+pub async fn article_count(db: &DbConn) -> Result<u64, DbErr> {
+    let count = Article::find()
+        .filter(article::Column::Deleted.eq(false))
+        .count(db)
+        .await?;
+    Ok(count)
+}
+
+/// Subquery: article_id from TagArticle join Tag where Tag.deleted = 0 (ids of articles that have at least one non-deleted tag).
+fn tagged_article_ids_subquery() -> sea_orm::sea_query::SelectStatement {
+    Query::select()
+        .column((tag_article::Entity, tag_article::Column::ArticleId))
+        .from(tag_article::Entity)
+        .inner_join(
+            tag::Entity,
+            SeaExpr::col((tag_article::Entity, tag_article::Column::TagId))
+                .equals((tag::Entity, tag::Column::Id)),
+        )
+        .and_where(SeaExpr::col((tag::Entity, tag::Column::Deleted)).eq(false))
+        .to_owned()
+}
+
+/// Delete non-deleted articles older than RETENTION_DAYS that have no (non-deleted) tags.
+pub async fn delete_articles_older_than_retention(db: &DbConn) -> Result<u64, DbErr> {
+    let cutoff = Utc::now() - chrono::TimeDelta::days(RETENTION_DAYS);
+    let result = Article::delete_many()
+        .filter(article::Column::Deleted.eq(false))
+        .filter(article::Column::Published.lt(cutoff))
+        .filter(article::Column::Id.not_in_subquery(tagged_article_ids_subquery()))
+        .exec(db)
+        .await?;
+    Ok(result.rows_affected)
+}
+
+/// If article count exceeds max_count, delete oldest-by-published untagged articles until count <= max_count.
+pub async fn ensure_article_cap(db: &DbConn, max_count: u32) -> Result<u64, DbErr> {
+    let count = article_count(db).await?;
+    if count <= max_count as u64 {
+        return Ok(0);
+    }
+    let to_remove = (count - max_count as u64) as u64;
+    let ids_to_remove: Vec<i32> = Article::find()
+        .select_only()
+        .column(article::Column::Id)
+        .filter(article::Column::Deleted.eq(false))
+        .filter(article::Column::Id.not_in_subquery(tagged_article_ids_subquery()))
+        .order_by_asc(article::Column::Published)
+        .limit(to_remove)
+        .into_tuple::<i32>()
+        .all(db)
+        .await?;
+    if ids_to_remove.is_empty() {
+        return Ok(0);
+    }
+    let result = Article::delete_many()
+        .filter(article::Column::Id.is_in(ids_to_remove))
+        .exec(db)
+        .await?;
+    Ok(result.rows_affected)
+}
+
 /// Backfill expiry_at for articles where expiry_at <= published (e.g. old data) so the relative sort works.
 pub async fn backfill_expiry_at(db: &DbConn) -> Result<(), DbErr> {
-    use sea_orm::ConnectionTrait;
-    db.execute(sea_orm::Statement::from_string(
+    use sea_orm::Statement;
+    db.execute(Statement::from_string(
         db.get_database_backend(),
         "UPDATE Article SET expiry_at = datetime(published, '+1 day') WHERE deleted = 0 AND expiry_at <= published".to_owned(),
     ))
@@ -197,26 +266,70 @@ pub async fn search_articles(
     num: Option<u64>,
     offset: Option<u64>,
 ) -> Result<Vec<article::Model>, DbErr> {
+    let trimmed = search_query.trim();
+    if trimmed.is_empty() {
+        return Ok(vec![]);
+    }
+    // FTS5: build OR of quoted terms so "foo bar" matches docs containing "foo" OR "bar".
+    // Escape internal double quotes and drop terms that would be empty after escaping.
+    let terms: Vec<String> = trimmed
+        .split_whitespace()
+        .map(|s| s.replace('"', "\"\""))
+        .filter(|s| !s.is_empty())
+        .collect();
+    if terms.is_empty() {
+        return Ok(vec![]);
+    }
+    let fts_query = terms
+        .iter()
+        .map(|t| format!("\"{}\"", t))
+        .collect::<Vec<_>>()
+        .join(" OR ");
+    let backend = db.get_database_backend();
+    let stmt = sea_orm::Statement::from_sql_and_values(
+        backend,
+        "SELECT rowid FROM article_fts WHERE article_fts MATCH ?",
+        [sea_orm::Value::String(Some(Box::new(fts_query)))],
+    );
+    let rows = db.query_all(stmt).await?;
+    let mut ids: Vec<i32> = Vec::with_capacity(rows.len());
+    for row in rows {
+        let id: i32 = row.try_get_by_index(0)?;
+        ids.push(id);
+    }
+    if ids.is_empty() {
+        return Ok(vec![]);
+    }
+    // Cap ids to avoid huge IN clause; we'll sort and paginate in memory
+    const MAX_FTS_IDS: usize = 10_000;
+    if ids.len() > MAX_FTS_IDS {
+        ids.truncate(MAX_FTS_IDS);
+    }
     let mut query = Article::find()
-        .filter(article::Column::Deleted.eq(false))
-        .filter(
-            article::Column::Name
-                .contains(&search_query)
-                .or(article::Column::Description.contains(&search_query)),
-        );
-
+        .filter(article::Column::Id.is_in(ids))
+        .filter(article::Column::Deleted.eq(false));
     query = apply_read_filter(query, filter);
-
-    query = query.order_by_asc(Expr::cust(RELATIVE_SORT));
-
-    if let Some(lim) = num {
-        query = query.limit(lim);
-    }
-    if let Some(off) = offset {
-        query = query.offset(off);
-    }
-
-    query.all(db).await
+    let mut articles = query.all(db).await?;
+    // Sort by relative urgency (same as RELATIVE_SORT)
+    let now_secs = Utc::now().timestamp();
+    articles.sort_by(|a, b| {
+        let sort_val = |art: &article::Model| {
+            let pub_secs = art.published.timestamp();
+            let exp_secs = art.expiry_at.timestamp();
+            let range = exp_secs - pub_secs;
+            if range > 0 {
+                (now_secs - pub_secs) as f64 / range as f64
+            } else {
+                1.0
+            }
+        };
+        sort_val(a).partial_cmp(&sort_val(b)).unwrap_or(std::cmp::Ordering::Equal)
+    });
+    let offset = offset.unwrap_or(0) as usize;
+    let num = num.unwrap_or(50) as usize;
+    let skip = offset.min(articles.len());
+    let take = num.min(articles.len().saturating_sub(skip));
+    Ok(articles.into_iter().skip(skip).take(take).collect())
 }
 
 pub async fn get_tags(db: &DbConn, id: i32) -> Result<Vec<tag::Model>, DbErr> {

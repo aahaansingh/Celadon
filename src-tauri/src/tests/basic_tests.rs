@@ -27,8 +27,13 @@ mod basic_tests {
                     category: "Science".to_owned(),
                     added: add,
                     last_fetched: fetch,
-                    healthy: true,
+                    status: 0,
                     feed_type: feed::FeedType::News,
+                    deleted: false,
+                    etag: None,
+                    last_modified: None,
+                    next_poll_after: None,
+                    consecutive_http_errors: 0,
                 },
                 feed::Model {
                     id: 2,
@@ -37,8 +42,13 @@ mod basic_tests {
                     category: "Blog".to_owned(),
                     added: add,
                     last_fetched: fetch,
-                    healthy: true,
+                    status: 0,
                     feed_type: feed::FeedType::Article,
+                    deleted: false,
+                    etag: None,
+                    last_modified: None,
+                    next_poll_after: None,
+                    consecutive_http_errors: 0,
                 },
             ]])
             .append_query_results([[(
@@ -53,8 +63,13 @@ mod basic_tests {
                     category: "Science".to_owned(),
                     added: add,
                     last_fetched: fetch,
-                    healthy: true,
+                    status: 0,
                     feed_type: feed::FeedType::News,
+                    deleted: false,
+                    etag: None,
+                    last_modified: None,
+                    next_poll_after: None,
+                    consecutive_http_errors: 0,
                 },
             )]])
             .into_connection();
@@ -77,8 +92,13 @@ mod basic_tests {
                     category: "Science".to_owned(),
                     added: add,
                     last_fetched: fetch,
-                    healthy: true,
+                    status: 0,
                     feed_type: feed::FeedType::News,
+                    deleted: false,
+                    etag: None,
+                    last_modified: None,
+                    next_poll_after: None,
+                    consecutive_http_errors: 0,
                 },
                 feed::Model {
                     id: 2,
@@ -87,8 +107,13 @@ mod basic_tests {
                     category: "Blog".to_owned(),
                     added: add,
                     last_fetched: fetch,
-                    healthy: true,
+                    status: 0,
                     feed_type: feed::FeedType::Article,
+                    deleted: false,
+                    etag: None,
+                    last_modified: None,
+                    next_poll_after: None,
+                    consecutive_http_errors: 0,
                 }
             ]
         );
@@ -110,8 +135,13 @@ mod basic_tests {
                     category: "Science".to_owned(),
                     added: add,
                     last_fetched: fetch,
-                    healthy: true,
+                    status: 0,
                     feed_type: feed::FeedType::News,
+                    deleted: false,
+                    etag: None,
+                    last_modified: None,
+                    next_poll_after: None,
+                    consecutive_http_errors: 0,
                 })
             )]
         );

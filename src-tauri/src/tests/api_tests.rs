@@ -25,7 +25,7 @@ async fn main() -> Result<(), DbErr> {
         "cat".to_owned(),
         add,
         fetch,
-        true,
+        0,
         feed::FeedType::News,
     )
     .await;
@@ -63,7 +63,7 @@ async fn superfeed_api_test(db: &DbConn) -> Result<(), DbErr> {
         "News".to_owned(),
         add,
         fetch,
-        true,
+        0,
         feed::FeedType::News,
     )
     .await?;
@@ -82,7 +82,7 @@ async fn superfeed_api_test(db: &DbConn) -> Result<(), DbErr> {
         "Lifestyle".to_owned(),
         add_next,
         fetch_next,
-        true,
+        0,
         feed::FeedType::Article,
     )
     .await?;
@@ -99,7 +99,7 @@ async fn superfeed_api_test(db: &DbConn) -> Result<(), DbErr> {
         "Music".to_owned(),
         add_last,
         fetch_last,
-        true,
+        0,
         feed::FeedType::Essay,
     )
     .await?;

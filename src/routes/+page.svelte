@@ -10,6 +10,7 @@
 		getAllSuperfeeds,
 		getAllTags,
 		getAllArticles,
+		getArticle,
 		searchArticles,
 		searchFeeds,
 		searchSuperfeeds,
@@ -427,6 +428,15 @@
 		onToggleDarkMode={() => theme.toggle()}
 		darkMode={theme.darkMode}
 		onRefresh={() => loadData()}
+		onOpenArticle={(id) => {
+			getArticle(id)
+				.then((a) => {
+					selectedArticle = a;
+					readArticle(a.id);
+					articles = articles.map((art) => (art.id === a.id ? { ...art, read: true } : art));
+				})
+				.catch((e) => console.error(e));
+		}}
 	/>
 
 	<!-- Error toast -->

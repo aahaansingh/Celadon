@@ -23,10 +23,19 @@ pub struct Model {
     pub category: String,
     pub added: DateTime<Utc>,
     pub last_fetched: DateTime<Utc>,
-    pub healthy: bool,
+    /// 0 = healthy, 1 = rate limited (diagnostic), 2–599 = HTTP error code (diagnostic)
+    pub status: i32,
     pub feed_type: FeedType,
     #[sea_orm(default_value = false)]
     pub deleted: bool,
+    /// Sent as If-None-Match on next request
+    pub etag: Option<String>,
+    /// Sent as If-Modified-Since on next request (HTTP-date string)
+    pub last_modified: Option<String>,
+    /// When set and in the future, skip polling this feed
+    pub next_poll_after: Option<DateTime<Utc>>,
+    /// Number of consecutive 4xx/5xx errors: 0 = healthy, 1–2 = backoff (yellow), 3 = dead (red, stop polling)
+    pub consecutive_http_errors: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

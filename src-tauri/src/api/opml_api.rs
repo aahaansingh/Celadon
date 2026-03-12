@@ -67,7 +67,7 @@ pub async fn import_opml_from_xml(db: &DbConn, xml: String) -> Result<(), String
                         "Import".to_string(),
                         now,
                         now,
-                        true,
+                        0,
                         FeedType::News,
                     )
                     .await
@@ -101,7 +101,7 @@ pub async fn import_opml_from_xml(db: &DbConn, xml: String) -> Result<(), String
                                 "Import".to_string(),
                                 now,
                                 now,
-                                true,
+                                0,
                                 FeedType::News,
                             )
                             .await

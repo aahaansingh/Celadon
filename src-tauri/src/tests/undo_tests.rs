@@ -23,7 +23,7 @@ async fn test_undo_functionality() -> Result<(), DbErr> {
         "cat".to_owned(),
         add,
         fetch,
-        true,
+        0,
         feed::FeedType::News,
     )
     .await?;

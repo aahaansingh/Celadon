@@ -4,7 +4,7 @@ use crate::models::feed::Entity as Feed;
 use crate::models::superfeed::Entity as Superfeed;
 use crate::models::{article, feed, superfeed};
 use sea_orm::entity::prelude::*;
-use sea_orm::{InsertResult, JoinType, Order, QueryFilter, QueryOrder, QuerySelect, Set};
+use sea_orm::{ConnectionTrait, InsertResult, JoinType, Order, QueryFilter, QueryOrder, QuerySelect, Set};
 
 pub async fn get_superfeed(db: &DbConn, id: i32) -> Result<superfeed::Model, DbErr> {
     let retrieved_superfeed = Superfeed::find_by_id(id)
@@ -154,8 +154,39 @@ pub async fn get_articles(
 }
 
 pub async fn search_superfeeds(db: &DbConn, query: String) -> Result<Vec<superfeed::Model>, DbErr> {
+    let trimmed = query.trim();
+    if trimmed.is_empty() {
+        return Ok(vec![]);
+    }
+    let terms: Vec<String> = trimmed
+        .split_whitespace()
+        .map(|s| s.replace('"', "\"\""))
+        .filter(|s| !s.is_empty())
+        .collect();
+    if terms.is_empty() {
+        return Ok(vec![]);
+    }
+    let fts_query = terms
+        .iter()
+        .map(|t| format!("\"{}\"", t))
+        .collect::<Vec<_>>()
+        .join(" OR ");
+    let backend = db.get_database_backend();
+    let stmt = sea_orm::Statement::from_sql_and_values(
+        backend,
+        "SELECT rowid FROM superfeed_fts WHERE superfeed_fts MATCH ?",
+        [sea_orm::Value::String(Some(Box::new(fts_query)))],
+    );
+    let rows = db.query_all(stmt).await?;
+    let ids: Vec<i32> = rows
+        .into_iter()
+        .filter_map(|r| r.try_get_by_index::<i32>(0).ok())
+        .collect();
+    if ids.is_empty() {
+        return Ok(vec![]);
+    }
     Superfeed::find()
-        .filter(superfeed::Column::Name.contains(&query))
+        .filter(superfeed::Column::Id.is_in(ids))
         .filter(superfeed::Column::Deleted.eq(false))
         .all(db)
         .await

@@ -20,6 +20,7 @@
 		searchFeeds,
 		searchSuperfeeds,
 		searchTags,
+		searchArticles,
 		type Feed,
 		type Superfeed,
 		type Tag,
@@ -30,15 +31,16 @@
 		return twMerge(clsx(inputs));
 	}
 
-	let { onAdd, onToggleDarkMode, darkMode, onRefresh } = $props<{
+	let { onAdd, onToggleDarkMode, darkMode, onRefresh, onOpenArticle } = $props<{
 		onAdd: () => void;
 		onToggleDarkMode: () => void;
 		darkMode: boolean;
 		onRefresh: () => void;
+		onOpenArticle?: (id: number) => void;
 	}>();
 
 	let searchQuery = $state('');
-	let suggestions = $state<{ id: number; name: string; type: 'feed' | 'superfeed' | 'tag' }[]>([]);
+	let suggestions = $state<{ id: number; name: string; type: 'feed' | 'superfeed' | 'tag' | 'article' }[]>([]);
 	let showSuggestions = $state(false);
 	let selectedIndex = $state(-1);
 
@@ -66,6 +68,16 @@
 			const results = await searchTags(q);
 			suggestions = results.map((t: Tag) => ({ id: t.id, name: t.name, type: 'tag' as const }));
 			showSuggestions = suggestions.length > 0;
+		} else if (value.trim().length >= 2) {
+			// Plain search: show article suggestions as autocomplete
+			try {
+				const results = await searchArticles(value.trim(), 'Unread', 5, 0);
+				suggestions = results.map((a) => ({ id: a.id, name: a.name, type: 'article' as const }));
+				showSuggestions = suggestions.length > 0;
+			} catch {
+				suggestions = [];
+				showSuggestions = false;
+			}
 		} else {
 			showSuggestions = false;
 			suggestions = [];
@@ -85,6 +97,8 @@
 			nav.push({ type: 'Superfeed', id: suggestion.id, name: suggestion.name, filter });
 		} else if (suggestion.type === 'tag') {
 			nav.push({ type: 'Tag', id: suggestion.id, name: suggestion.name, filter });
+		} else if (suggestion.type === 'article' && onOpenArticle) {
+			onOpenArticle(suggestion.id);
 		}
 
 		searchQuery = '';
@@ -280,7 +294,7 @@
 					bind:value={searchQuery}
 					oninput={handleInput}
 					onkeydown={handleKeydown}
-					onfocus={() => (showSuggestions = searchQuery.startsWith('\\') && suggestions.length > 0)}
+					onfocus={() => (showSuggestions = suggestions.length > 0)}
 					onblur={() => setTimeout(() => (showSuggestions = false), 200)}
 					class="w-full pl-10 pr-4 py-2 bg-muted/20 border border-primary/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all font-body text-sm placeholder:text-muted-foreground/50"
 				/>
@@ -316,11 +330,13 @@
 										<Radio class="w-4 h-4 opacity-50" />
 									{:else if s.type === 'superfeed'}
 										<Layers class="w-4 h-4 opacity-50" />
-									{:else}
+									{:else if s.type === 'tag'}
 										<Hash class="w-4 h-4 opacity-50" />
+									{:else}
+										<Search class="w-4 h-4 opacity-50" />
 									{/if}
-									<span class="text-sm font-body font-medium">{s.name}</span>
-									<span class="ml-auto text-[10px] opacity-40 uppercase tracking-tighter"
+									<span class="text-sm font-body font-medium line-clamp-1">{s.name}</span>
+									<span class="ml-auto text-[10px] opacity-40 uppercase tracking-tighter shrink-0"
 										>{s.type}</span
 									>
 								</button>

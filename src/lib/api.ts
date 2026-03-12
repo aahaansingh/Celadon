@@ -30,9 +30,12 @@ export interface Feed {
     category: string;
     added: string;
     last_fetched: string;
-    healthy: boolean;
+    /** 0 = healthy, 1 = rate limited, 2–599 = most recent HTTP error code (for hover) */
+    status: number;
     feed_type: 'News' | 'Article' | 'Essay';
     deleted: boolean;
+    /** 0 = healthy, 1–2 = consecutive failures (yellow), 3 = dead (red) */
+    consecutive_http_errors: number;
 }
 
 export interface Superfeed {
@@ -63,6 +66,7 @@ export interface ArticleQuery {
 // Single-word keys (id, name, filter, etc.) stay as-is.
 export const getArticles = (id: number, filter: ReadFilter, num?: number, offset?: number) =>
     invoke<Article[]>('get_articles', { id, filter, num, offset });
+export const getArticle = (id: number) => invoke<Article>('get_article', { id });
 
 export const getSuperfeedArticles = (id: number, filter: ReadFilter, num?: number, offset?: number) =>
     invoke<Article[]>('get_superfeed_articles', { id, filter, num, offset });

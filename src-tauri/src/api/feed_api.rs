@@ -6,7 +6,7 @@ use crate::models::{article, feed, feed_superfeed};
 use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use sea_orm::prelude::Expr;
-use sea_orm::{InsertResult, QueryFilter, QueryOrder, QuerySelect, Set};
+use sea_orm::{ConnectionTrait, InsertResult, QueryFilter, QueryOrder, QuerySelect, Set};
 
 pub enum FeedStrFields {
     Url,
@@ -63,7 +63,7 @@ pub async fn create_feed(
     category: String,
     added: DateTime<Utc>,
     last_fetched: DateTime<Utc>,
-    healthy: bool,
+    status: i32,
     feed_type: feed::FeedType,
 ) -> Result<InsertResult<feed::ActiveModel>, DbErr> {
     if name.contains('\\') {
@@ -82,8 +82,12 @@ pub async fn create_feed(
         category: Set(category.to_owned()),
         added: Set(added),
         last_fetched: Set(last_fetched),
-        healthy: Set(healthy),
+        status: Set(status),
         feed_type: Set(feed_type),
+        etag: Set(None),
+        last_modified: Set(None),
+        next_poll_after: Set(None),
+        consecutive_http_errors: Set(0),
         ..Default::default()
     };
 
@@ -170,10 +174,56 @@ pub async fn remove_feed_from_superfeed(
     Ok(())
 }
 
-pub async fn update_feed_health(db: &DbConn, id: i32, new_val: bool) -> Result<(), DbErr> {
+pub async fn update_feed_status(db: &DbConn, id: i32, status: i32) -> Result<(), DbErr> {
     let feed_model = get_feed(db, id).await?;
     let mut feed_active: feed::ActiveModel = feed_model.into();
-    feed_active.healthy = Set(new_val);
+    feed_active.status = Set(status);
+    let _updated_feed_model = feed_active.update(db).await?;
+    Ok(())
+}
+
+pub async fn update_feed_next_poll_after(
+    db: &DbConn,
+    id: i32,
+    next_poll_after: Option<DateTime<Utc>>,
+) -> Result<(), DbErr> {
+    let feed_model = get_feed(db, id).await?;
+    let mut feed_active: feed::ActiveModel = feed_model.into();
+    feed_active.next_poll_after = Set(next_poll_after);
+    let _updated_feed_model = feed_active.update(db).await?;
+    Ok(())
+}
+
+pub async fn update_feed_conditional_headers(
+    db: &DbConn,
+    id: i32,
+    etag: Option<String>,
+    last_modified: Option<String>,
+) -> Result<(), DbErr> {
+    let feed_model = get_feed(db, id).await?;
+    let mut feed_active: feed::ActiveModel = feed_model.into();
+    feed_active.etag = Set(etag);
+    feed_active.last_modified = Set(last_modified);
+    let _updated_feed_model = feed_active.update(db).await?;
+    Ok(())
+}
+
+pub async fn update_feed_url(db: &DbConn, id: i32, new_url: String) -> Result<(), DbErr> {
+    let feed_model = get_feed(db, id).await?;
+    let mut feed_active: feed::ActiveModel = feed_model.into();
+    feed_active.url = Set(new_url);
+    let _updated_feed_model = feed_active.update(db).await?;
+    Ok(())
+}
+
+pub async fn update_feed_consecutive_http_errors(
+    db: &DbConn,
+    id: i32,
+    consecutive_http_errors: i32,
+) -> Result<(), DbErr> {
+    let feed_model = get_feed(db, id).await?;
+    let mut feed_active: feed::ActiveModel = feed_model.into();
+    feed_active.consecutive_http_errors = Set(consecutive_http_errors);
     let _updated_feed_model = feed_active.update(db).await?;
     Ok(())
 }
@@ -270,8 +320,39 @@ pub async fn feed_max_id(db: &DbConn) -> Result<i32, DbErr> {
 }
 
 pub async fn search_feeds(db: &DbConn, query: String) -> Result<Vec<feed::Model>, DbErr> {
+    let trimmed = query.trim();
+    if trimmed.is_empty() {
+        return Ok(vec![]);
+    }
+    let terms: Vec<String> = trimmed
+        .split_whitespace()
+        .map(|s| s.replace('"', "\"\""))
+        .filter(|s| !s.is_empty())
+        .collect();
+    if terms.is_empty() {
+        return Ok(vec![]);
+    }
+    let fts_query = terms
+        .iter()
+        .map(|t| format!("\"{}\"", t))
+        .collect::<Vec<_>>()
+        .join(" OR ");
+    let backend = db.get_database_backend();
+    let stmt = sea_orm::Statement::from_sql_and_values(
+        backend,
+        "SELECT rowid FROM feed_fts WHERE feed_fts MATCH ?",
+        [sea_orm::Value::String(Some(Box::new(fts_query)))],
+    );
+    let rows = db.query_all(stmt).await?;
+    let ids: Vec<i32> = rows
+        .into_iter()
+        .filter_map(|r| r.try_get_by_index::<i32>(0).ok())
+        .collect();
+    if ids.is_empty() {
+        return Ok(vec![]);
+    }
     Feed::find()
-        .filter(feed::Column::Name.contains(&query))
+        .filter(feed::Column::Id.is_in(ids))
         .filter(feed::Column::Deleted.eq(false))
         .all(db)
         .await

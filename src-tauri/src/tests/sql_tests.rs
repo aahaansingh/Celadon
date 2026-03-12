@@ -35,8 +35,12 @@ async fn feed_test(db: &DbConn) -> Result<(), DbErr> {
         category: Set("Science".to_owned()),
         added: Set(add),
         last_fetched: Set(fetch),
-        healthy: Set(true),
+        status: Set(0),
         feed_type: Set(feed::FeedType::News),
+        etag: Set(None),
+        last_modified: Set(None),
+        next_poll_after: Set(None),
+        consecutive_http_errors: Set(0),
         ..Default::default()
     };
 
@@ -52,8 +56,12 @@ async fn feed_test(db: &DbConn) -> Result<(), DbErr> {
         category: Set("Blog".to_owned()),
         added: Set(add),
         last_fetched: Set(fetch),
-        healthy: Set(true),
+        status: Set(0),
         feed_type: Set(feed::FeedType::Article),
+        etag: Set(None),
+        last_modified: Set(None),
+        next_poll_after: Set(None),
+        consecutive_http_errors: Set(0),
         ..Default::default()
     };
 
