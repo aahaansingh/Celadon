@@ -17,8 +17,8 @@
 	}>();
 
 	const typeColors: Record<string, string> = {
-		News: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-		Article: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+		News: 'bg-blue-100 text-blue-900 dark:bg-blue-900/30 dark:text-blue-300',
+		Article: 'bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-300',
 		Essay: 'bg-purple-200 text-purple-900 dark:bg-purple-900/30 dark:text-purple-300'
 	};
 
@@ -67,12 +67,14 @@
 	class="bg-card border border-border beveled p-4 cursor-pointer hover:shadow-lg transition-all duration-300 min-h-[260px] flex flex-col justify-between group relative overflow-hidden"
 >
 	<div class="flex-1 overflow-hidden flex flex-col gap-2">
-		<div class="flex items-start justify-between gap-2">
-			<h3
-				class="line-clamp-3 text-sm font-heading leading-snug pb-0.5 min-h-[2.85rem] group-hover:text-primary transition-colors"
-			>
-				{article.name}
-			</h3>
+		<div class="flex items-start justify-between gap-2 min-h-0">
+			<div class="min-w-0 flex-1 overflow-hidden" style="max-height: calc(3 * 1.25 * 0.875rem);">
+				<h3
+					class="line-clamp-3 text-sm font-heading leading-snug group-hover:text-primary transition-colors break-words"
+				>
+					{decodeHtmlEntities(article.name)}
+				</h3>
+			</div>
 			<button
 				onclick={(e) => {
 					e.stopPropagation();
@@ -89,13 +91,15 @@
 		</div>
 
 		{#if descriptionPreview}
-			<p class="text-xs text-muted-foreground font-body italic line-clamp-2">
-				{descriptionPreview}
-			</p>
+			<div class="min-h-0 overflow-hidden">
+				<p class="text-xs text-muted-foreground font-body italic line-clamp-2 overflow-hidden leading-snug">
+					{descriptionPreview}
+				</p>
+			</div>
 		{/if}
 
 		<div class="space-y-1.5 text-xs text-muted-foreground font-body">
-			<p class="truncate font-medium">{feed?.name || 'Unknown Feed'}</p>
+			<p class="truncate font-medium">{feed ? decodeHtmlEntities(feed.name) : 'Unknown Feed'}</p>
 			<div class="flex items-center gap-1">
 				<Clock class="w-3 h-3" />
 				<span>{timeAgo}</span>
@@ -124,11 +128,11 @@
 							}}
 							class="text-[10px] font-body px-2 py-0.5 rounded-full bg-muted text-muted-foreground hover:bg-primary/20 hover:text-primary pill-hover-lighten whitespace-nowrap shrink-0 transition-colors"
 						>
-							{tag.name}
+							{decodeHtmlEntities(tag.name)}
 						</button>
 					{:else}
 						<span class="text-[10px] font-body px-2 py-0.5 rounded-full bg-muted text-muted-foreground whitespace-nowrap shrink-0">
-							{tag.name}
+							{decodeHtmlEntities(tag.name)}
 						</span>
 					{/if}
 				{/each}

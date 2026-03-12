@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Article, Tag } from '$lib/api';
+	import { decodeHtmlEntities } from '$lib/sanitizeHtml';
 	import { X, Hash, Plus } from 'lucide-svelte';
 	import { fade, scale } from 'svelte/transition';
 
@@ -81,7 +82,7 @@
 			</button>
 		</div>
 		<div class="p-4 space-y-4">
-			<p class="text-xs text-muted-foreground line-clamp-2 font-body">{article.name}</p>
+			<p class="text-xs text-muted-foreground line-clamp-2 font-body">{decodeHtmlEntities(article.name)}</p>
 			{#if tags.length > 0}
 				<div class="space-y-1">
 					<p class="text-[10px] font-heading text-muted-foreground">Select tags</p>
@@ -103,7 +104,7 @@
 									{/if}
 								</span>
 								<Hash class="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-								<span class="min-w-0 truncate">{tag.name}</span>
+								<span class="min-w-0 truncate">{decodeHtmlEntities(tag.name)}</span>
 							</button>
 						{/each}
 					</div>

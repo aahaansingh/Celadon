@@ -128,33 +128,19 @@ pub async fn import_opml_from_xml(db: &DbConn, xml: String) -> Result<(), String
 }
 
 pub async fn export_opml_internal(db: &DbConn, path: String) -> Result<(), String> {
-    let mut root_outlines = Vec::new();
-    let superfeeds = superfeed_api::get_all_superfeeds(db)
+    let feeds = feed_api::get_all_feeds(db)
         .await
         .map_err(|e| e.to_string())?;
 
-    for sf in superfeeds {
-        let feeds = superfeed_api::get_feeds(db, sf.id, None)
-            .await
-            .map_err(|e| e.to_string())?;
-
-        let mut child_outlines = Vec::new();
-        for f in feeds {
-            child_outlines.push(Outline {
-                text: f.name.clone(),
-                title: Some(f.name.clone()),
-                xml_url: Some(f.url.clone()),
-                ..Default::default()
-            });
-        }
-
-        root_outlines.push(Outline {
-            text: sf.name.clone(),
-            title: Some(sf.name.clone()),
-            outlines: child_outlines,
+    let outlines: Vec<Outline> = feeds
+        .into_iter()
+        .map(|f| Outline {
+            text: f.name.clone(),
+            title: Some(f.name.clone()),
+            xml_url: Some(f.url.clone()),
             ..Default::default()
-        });
-    }
+        })
+        .collect();
 
     let opml = OPML {
         version: "2.0".to_string(),
@@ -163,7 +149,7 @@ pub async fn export_opml_internal(db: &DbConn, path: String) -> Result<(), Strin
             ..Default::default()
         }),
         body: Body {
-            outlines: root_outlines,
+            outlines,
         },
     };
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Superfeed } from '$lib/api';
+	import { decodeHtmlEntities } from '$lib/sanitizeHtml';
 	import { Layers, Settings } from 'lucide-svelte';
 
 	let { superfeed, onClick, onSettings, onContextMenu } = $props<{
@@ -25,7 +26,7 @@
 			<Layers class="w-8 h-8 text-primary" />
 		</div>
 		<h3 class="font-heading font-bold text-center line-clamp-2 px-2">
-			{superfeed.name}
+			{decodeHtmlEntities(superfeed.name)}
 		</h3>
 		<p class="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Superfeed</p>
 	</div>

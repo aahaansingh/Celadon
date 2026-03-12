@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Article } from '$lib/api';
 	import { openInBrowser } from '$lib/api';
-	import { sanitizeHtml } from '$lib/sanitizeHtml';
+	import { decodeHtmlEntities, sanitizeHtml } from '$lib/sanitizeHtml';
 	import { X, ExternalLink } from 'lucide-svelte';
 	import { fade } from 'svelte/transition';
 
@@ -26,7 +26,7 @@
 					<X class="w-5 h-5" />
 				</button>
 				<h1 class="font-heading font-bold text-lg truncate max-w-xl">
-					{article.name}
+					{decodeHtmlEntities(article.name)}
 				</h1>
 			</div>
 
@@ -60,7 +60,7 @@
 				</article>
 			{:else}
 				<div class="w-full h-full flex flex-col bg-white">
-					<iframe src={article.url} title={article.name} class="w-full flex-1 min-h-0 border-none"></iframe>
+					<iframe src={article.url} title={decodeHtmlEntities(article.name)} class="w-full flex-1 min-h-0 border-none"></iframe>
 					<div class="px-4 py-2 bg-muted/50 border-t border-border text-center text-xs text-muted-foreground font-body">
 						If the page doesn&apos;t appear, this site may block embedding.
 						<button

@@ -457,7 +457,7 @@
 		</div>
 	{/if}
 
-	<main class="container mx-auto pb-10">
+	<main class="container mx-auto pb-10 pt-6">
 		{#if loading}
 			<div class="flex items-center justify-center h-64">
 				<div class="animate-pulse text-primary font-heading text-sm">

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Feed } from '$lib/api';
+	import { decodeHtmlEntities } from '$lib/sanitizeHtml';
 	import { Rss, Settings, Layers } from 'lucide-svelte';
 
 	let { feed, onClick, onSettings, onContextMenu, superfeeds = [], onSuperfeedClick } = $props<{
@@ -44,8 +45,8 @@
 				></span>
 			{/if}
 		</div>
-		<h3 class="font-heading font-bold text-center line-clamp-2 px-2">
-			{feed.name}
+		<h3 class="font-heading font-bold text-center line-clamp-2 px-2 min-w-0 w-full">
+			{decodeHtmlEntities(feed.name)}
 		</h3>
 		<p class="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">
 			{feed.feed_type}
@@ -66,11 +67,11 @@
 							}}
 							class="text-[10px] font-body px-2 py-0.5 rounded-full bg-muted text-muted-foreground hover:bg-primary/20 hover:text-primary pill-hover-lighten whitespace-nowrap shrink-0 transition-colors"
 						>
-							{s.name}
+							{decodeHtmlEntities(s.name)}
 						</button>
 					{:else}
 						<span class="text-[10px] font-body px-2 py-0.5 rounded-full bg-muted text-muted-foreground whitespace-nowrap shrink-0">
-							{s.name}
+							{decodeHtmlEntities(s.name)}
 						</span>
 					{/if}
 				{/each}

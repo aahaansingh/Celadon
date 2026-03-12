@@ -13,6 +13,7 @@
 		Rss
 	} from 'lucide-svelte';
 	import { nav } from '$lib/nav.svelte';
+	import { decodeHtmlEntities } from '$lib/sanitizeHtml';
 	import { clsx, type ClassValue } from 'clsx';
 	import { twMerge } from 'tailwind-merge';
 	import { theme } from '$lib/theme.svelte';
@@ -129,13 +130,19 @@
 		const trimmed = raw.trim();
 		let filter: ReadFilter = 'Unread';
 		let cleanQuery = trimmed;
+		const articleViewTypes = ['All', 'Feed', 'Superfeed', 'Tag', 'Search'] as const;
+		function isArticleView(): boolean {
+			return articleViewTypes.includes(nav.current.type as (typeof articleViewTypes)[number]);
+		}
 
-		// Solo filter commands: \a, \r, \u (no query) → update filter on current view
+		// Solo filter commands: \a, \r, \u (no query) → update filter on current view only when in article view
 		if (trimmed === '\\a' || trimmed === '\\r' || trimmed === '\\u') {
-			if (trimmed === '\\a') filter = 'All';
-			else if (trimmed === '\\r') filter = 'Read';
-			else filter = 'Unread';
-			nav.updateFilter(filter);
+			if (isArticleView()) {
+				if (trimmed === '\\a') filter = 'All';
+				else if (trimmed === '\\r') filter = 'Read';
+				else filter = 'Unread';
+				nav.updateFilter(filter);
+			}
 			return;
 		}
 
@@ -147,8 +154,7 @@
 				nav.push({ type: 'Search', name: `Search: ${cleanQuery}`, query: cleanQuery, filter });
 				return;
 			}
-			// "\a:" with no query → just switch to All filter
-			nav.updateFilter(filter);
+			if (isArticleView()) nav.updateFilter(filter);
 			return;
 		}
 		if (trimmed.startsWith('\\r:')) {
@@ -158,7 +164,7 @@
 				nav.push({ type: 'Search', name: `Search: ${cleanQuery}`, query: cleanQuery, filter });
 				return;
 			}
-			nav.updateFilter(filter);
+			if (isArticleView()) nav.updateFilter(filter);
 			return;
 		}
 		if (trimmed.startsWith('\\u:')) {
@@ -168,7 +174,7 @@
 				nav.push({ type: 'Search', name: `Search: ${cleanQuery}`, query: cleanQuery, filter });
 				return;
 			}
-			nav.updateFilter(filter);
+			if (isArticleView()) nav.updateFilter(filter);
 			return;
 		}
 
@@ -234,9 +240,9 @@
 	class="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm"
 >
 	<div class="container mx-auto px-6 py-3">
-		<div class="flex items-center gap-6">
-			<!-- Logo & Breadcrumbs -->
-			<div class="flex items-center gap-4 flex-shrink-0">
+		<div class="flex items-center gap-4">
+			<!-- Logo & Breadcrumbs (content-sized, max-w-md so path truncates; search bar fills the rest) -->
+			<div class="flex items-center gap-4 min-w-0 max-w-md shrink-0">
 				<button
 					type="button"
 					class="relative group cursor-pointer"
@@ -253,10 +259,15 @@
 					/>
 				</button>
 
-				<nav class="flex items-center text-sm font-heading text-muted-foreground whitespace-nowrap">
+				<nav class="flex items-center text-sm font-heading text-muted-foreground min-w-0 overflow-hidden">
 					{#each breadcrumbs as part, i}
-						<span class={cn(i === breadcrumbs.length - 1 && 'text-foreground font-bold')}>
-							{part}
+						<span
+							class={cn(
+								i === breadcrumbs.length - 1 && 'text-foreground font-bold',
+								part !== 'Celadon' && !part.startsWith('(') && 'truncate max-w-[14rem] inline-block align-bottom'
+							)}
+						>
+							{part === 'Celadon' || part.startsWith('(') ? part : decodeHtmlEntities(part)}
 						</span>
 						{#if i < breadcrumbs.length - 1}
 							<span class="mx-2 opacity-30">/</span>
@@ -266,7 +277,7 @@
 			</div>
 
 			<!-- Navigation Controls -->
-			<div class="flex gap-1">
+			<div class="flex gap-1 shrink-0">
 				<button
 					onclick={() => nav.back()}
 					disabled={!nav.canGoBack}
@@ -283,8 +294,8 @@
 				</button>
 			</div>
 
-			<!-- Unified Search & Command Bar -->
-			<div class="flex-1 relative group">
+			<!-- Unified Search & Command Bar (dynamic: grows with space, shrinks when nav path needs room) -->
+			<div class="flex-1 relative group min-w-0">
 				<Search
 					class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors"
 				/>
@@ -347,7 +358,7 @@
 			</div>
 
 			<!-- Actions -->
-			<div class="flex items-center gap-3">
+			<div class="flex items-center gap-3 shrink-0">
 				<button
 					onclick={() => nav.push({ type: 'FeedsList', name: 'Feeds' })}
 					class="p-2 hover:bg-muted rounded-xl transition-all text-muted-foreground hover:text-primary"
