@@ -14,7 +14,7 @@
 		feed: Feed;
 		superfeeds: Superfeed[];
 		onClose: () => void;
-		onSaved: () => void;
+		onSaved?: (updated: { name: string; feed_type: 'News' | 'Article' | 'Essay'; superfeedIds: number[] }) => void;
 	}>();
 
 	let name = $state(feed.name);
@@ -44,7 +44,7 @@
 				if (want && !has) await addFeedToSuperfeed(feed.id, s.id);
 				if (!want && has) await removeFeedFromSuperfeed(feed.id, s.id);
 			}
-			onSaved();
+			onSaved?.({ name: name.trim(), feed_type: feedType, superfeedIds: [...superfeedIds] });
 			onClose();
 		} catch (e) {
 			console.error(e);
@@ -88,6 +88,9 @@
 					bind:value={name}
 					class="w-full bg-muted border-none rounded-2xl px-4 py-2 font-body text-sm"
 				/>
+				<p class="mt-1.5 text-xs font-body text-muted-foreground/80 truncate" title={feed.url}>
+					{feed.url}
+				</p>
 			</div>
 			<div>
 				<span class="text-xs font-heading font-bold text-muted-foreground block mb-1">Type</span>

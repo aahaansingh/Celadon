@@ -4,6 +4,40 @@ use chrono::Utc;
 use opml::{Body, Head, Outline, OPML};
 use sea_orm::DbConn;
 
+/// Returns true if the URL is from a known reader's tag/stream/label system rather than a real RSS/Atom feed.
+/// Such outlines should be skipped on import so tags are not created as feeds.
+fn is_likely_reader_tag_or_stream_url(url: &str) -> bool {
+    let lower = url.to_lowercase();
+    // Feedly: tag and board URLs (e.g. feedly.com/v3/tags/..., feedly.com/v3/boards/...)
+    if lower.contains("feedly.com") && (lower.contains("/v3/tags") || lower.contains("/v3/boards")) {
+        return true;
+    }
+    // Inoreader: stream/label/subscription API URLs (e.g. inoreader.com/reader/..., stream IDs)
+    if lower.contains("inoreader.com") && (lower.contains("/reader/") || lower.contains("/stream/") || lower.contains("/label/")) {
+        return true;
+    }
+    // The Old Reader: user-specific stream URLs
+    if lower.contains("theoldreader.com") && (lower.contains("/stream/") || lower.contains("/label/")) {
+        return true;
+    }
+    // Netvibes, Newsblur and similar: subscription/stream URLs that are not direct feed URLs
+    if lower.contains("netvibes.com") && lower.contains("/subscribe/") {
+        return true;
+    }
+    false
+}
+
+/// Returns true if this outline should be treated as a tag/category (not a feed) and skipped when importing feeds.
+fn outline_is_tag_or_category(outline: &Outline) -> bool {
+    if let Some(ref t) = outline.r#type {
+        let lower = t.to_lowercase();
+        if lower == "tag" || lower == "category" || lower == "label" {
+            return true;
+        }
+    }
+    false
+}
+
 /// Ensure feed is in superfeed; no-op if already linked.
 async fn ensure_feed_in_superfeed(db: &DbConn, feed_id: i32, superfeed_id: i32) -> Result<(), String> {
     let ids = feed_api::get_superfeed_ids_for_feed(db, feed_id)
@@ -54,6 +88,9 @@ pub async fn import_opml_from_xml(db: &DbConn, xml: String) -> Result<(), String
         }
         if outline.xml_url.is_some() {
             let url = outline.xml_url.clone().unwrap_or_default();
+            if outline_is_tag_or_category(outline) || is_likely_reader_tag_or_stream_url(&url) {
+                continue;
+            }
             let name = outline.text.clone();
             let feed_id = match feed_api::get_feed_by_url(db, url.clone()).await.map_err(|e| e.to_string())? {
                 Some(existing) => existing.id,
@@ -88,6 +125,9 @@ pub async fn import_opml_from_xml(db: &DbConn, xml: String) -> Result<(), String
             for sub_outline in &outline.outlines {
                 if sub_outline.xml_url.is_some() {
                     let url = sub_outline.xml_url.clone().unwrap_or_default();
+                    if outline_is_tag_or_category(sub_outline) || is_likely_reader_tag_or_stream_url(&url) {
+                        continue;
+                    }
                     let name = sub_outline.text.clone();
                     let feed_id = match feed_api::get_feed_by_url(db, url.clone()).await.map_err(|e| e.to_string())? {
                         Some(existing) => existing.id,

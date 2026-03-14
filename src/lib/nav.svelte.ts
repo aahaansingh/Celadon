@@ -1,6 +1,6 @@
 import type { ReadFilter } from './api';
 
-export type ViewType = 'All' | 'Feed' | 'Superfeed' | 'Tag' | 'Search' | 'Settings' | 'FeedsList' | 'SuperfeedsList' | 'TagsList' | 'SuperfeedFeeds' | 'FeedSuperfeeds';
+export type ViewType = 'All' | 'Feed' | 'Superfeed' | 'Tag' | 'Search' | 'Settings' | 'FeedsList' | 'SuperfeedsList' | 'TagsList' | 'SuperfeedFeeds' | 'FeedSuperfeeds' | 'FeedCard';
 
 export interface ViewState {
     type: ViewType;

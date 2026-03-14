@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, untrack } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import { nav } from '$lib/nav.svelte';
 	import { theme } from '$lib/theme.svelte';
 	import {
@@ -112,6 +112,163 @@
 
 	const PAGE_SIZE = 50;
 
+	/** Refetch only the current view's article list + articleTags (no global lists). No-op for non-article views. */
+	async function refetchCurrentViewArticlesOnly() {
+		const type = nav.current.type;
+		if (
+			type !== 'All' &&
+			type !== 'Feed' &&
+			type !== 'Superfeed' &&
+			type !== 'Tag' &&
+			type !== 'Search'
+		) {
+			return;
+		}
+		const filter = nav.current.filter || 'Unread';
+		let newArticles: Article[] = [];
+		if (type === 'All') {
+			newArticles = await getAllArticles(filter, PAGE_SIZE, 0);
+		} else if (type === 'Feed' && nav.current.id) {
+			newArticles = await getArticles(nav.current.id, filter, PAGE_SIZE, 0);
+		} else if (type === 'Superfeed' && nav.current.id) {
+			newArticles = await getSuperfeedArticles(nav.current.id, filter, PAGE_SIZE, 0);
+		} else if (type === 'Tag' && nav.current.id) {
+			newArticles = await getTagArticles(nav.current.id, filter, PAGE_SIZE, 0);
+		} else if (type === 'Search' && nav.current.query) {
+			newArticles = await searchArticles(nav.current.query, filter, PAGE_SIZE, 0);
+		}
+		endOfList = newArticles.length < PAGE_SIZE;
+		articles = newArticles;
+		const tagMap: Record<number, TagType[]> = {};
+		await Promise.all(
+			newArticles.map(async (a) => {
+				const t = await getArticleTags(a.id);
+				tagMap[a.id] = t;
+			})
+		);
+		articleTags = tagMap;
+	}
+
+	/** Patch feed in allFeeds, feeds, and feedSuperfeeds (no API call). */
+	function patchFeedInState(
+		feedId: number,
+		updates: { name?: string; feed_type?: 'News' | 'Article' | 'Essay'; superfeedIds?: number[] }
+	) {
+		const feed = allFeeds.find((f) => f.id === feedId) ?? feeds[feedId];
+		if (!feed) return;
+		const name = updates.name ?? feed.name;
+		const feed_type = updates.feed_type ?? feed.feed_type;
+		allFeeds = allFeeds.map((f) =>
+			f.id === feedId ? { ...f, name, feed_type } : f
+		);
+		feeds = { ...feeds, [feedId]: { ...feed, name, feed_type } };
+		if (updates.superfeedIds != null) {
+			const list = updates.superfeedIds
+				.map((id) => {
+					const s = allSuperfeeds.find((x) => x.id === id);
+					return s ? { id: s.id, name: s.name } : null;
+				})
+				.filter(Boolean) as { id: number; name: string }[];
+			feedSuperfeeds = { ...feedSuperfeeds, [feedId]: list };
+		}
+	}
+
+	/** Patch superfeed name in allSuperfeeds and in every feedSuperfeeds entry that references it. */
+	function patchSuperfeedInState(superfeedId: number, updates: { name: string }) {
+		allSuperfeeds = allSuperfeeds.map((s) =>
+			s.id === superfeedId ? { ...s, name: updates.name } : s
+		);
+		const next: Record<number, { id: number; name: string }[]> = {};
+		for (const [fid, list] of Object.entries(feedSuperfeeds)) {
+			next[+fid] = list.map((x) =>
+				x.id === superfeedId ? { ...x, name: updates.name } : x
+			);
+		}
+		feedSuperfeeds = next;
+	}
+
+	/** Patch tag name in allTags and in every articleTags entry that contains this tag. */
+	function patchTagInState(tagId: number, updates: { name: string }) {
+		allTags = allTags.map((t) => (t.id === tagId ? { ...t, name: updates.name } : t));
+		const next: Record<number, TagType[]> = {};
+		for (const [aid, tags] of Object.entries(articleTags)) {
+			next[+aid] = tags.map((t) => (t.id === tagId ? { ...t, name: updates.name } : t));
+		}
+		articleTags = next;
+	}
+
+	/** Refetch data for the current view only (articles for article views, or the list for list views). */
+	async function refetchCurrentView() {
+		const type = nav.current.type;
+		if (
+			type === 'All' ||
+			type === 'Feed' ||
+			type === 'Superfeed' ||
+			type === 'Tag' ||
+			type === 'Search'
+		) {
+			await refetchCurrentViewArticlesOnly();
+			return;
+		}
+		if (type === 'FeedCard') {
+			const [feedsRes, superfeedsRes, tagsRes] = await Promise.all([
+				getAllFeeds(),
+				getAllSuperfeeds(),
+				getAllTags()
+			]);
+			allFeeds = feedsRes;
+			allSuperfeeds = superfeedsRes;
+			allTags = tagsRes;
+			feeds = allFeeds.reduce(
+				(acc: Record<number, Feed>, f: Feed) => ({ ...acc, [f.id]: f }),
+				{}
+			);
+			const superfeedsMap: Record<number, { id: number; name: string }[]> = {};
+			await Promise.all(
+				allFeeds.map(async (f) => {
+					const ids = await getSuperfeedIdsForFeed(f.id);
+					superfeedsMap[f.id] = ids
+						.map((id) => {
+							const s = allSuperfeeds.find((s) => s.id === id);
+							return s ? { id: s.id, name: s.name } : null;
+						})
+						.filter(Boolean) as { id: number; name: string }[];
+				})
+			);
+			feedSuperfeeds = superfeedsMap;
+			return;
+		}
+		if (type === 'SuperfeedFeeds' && nav.current.id != null) {
+			const [list, superfeedsRes] = await Promise.all([
+				getSuperfeedFeeds(nav.current.id),
+				getAllSuperfeeds()
+			]);
+			superfeedFeedsList = list;
+			const superfeedsMap: Record<number, { id: number; name: string }[]> = {};
+			await Promise.all(
+				list.map(async (f) => {
+					const ids = await getSuperfeedIdsForFeed(f.id);
+					superfeedsMap[f.id] = ids
+						.map((id) => {
+							const s = superfeedsRes.find((s) => s.id === id);
+							return s ? { id: s.id, name: s.name } : null;
+						})
+						.filter(Boolean) as { id: number; name: string }[];
+				})
+			);
+			feedSuperfeeds = superfeedsMap;
+			return;
+		}
+		if (type === 'FeedSuperfeeds' && nav.current.id != null) {
+			const [ids, superfeedsRes] = await Promise.all([
+				getSuperfeedIdsForFeed(nav.current.id),
+				getAllSuperfeeds()
+			]);
+			feedSuperfeedsList = superfeedsRes.filter((s) => ids.includes(s.id));
+			return;
+		}
+	}
+
 	async function loadData(append = false) {
 		if (append) {
 			loadingMore = true;
@@ -125,6 +282,38 @@
 		}
 
 		try {
+			if (nav.current.type === 'FeedCard') {
+				if (!append) {
+					const [feedsRes, superfeedsRes, tagsRes] = await Promise.all([
+						getAllFeeds(),
+						getAllSuperfeeds(),
+						getAllTags()
+					]);
+					allFeeds = feedsRes;
+					allSuperfeeds = superfeedsRes;
+					allTags = tagsRes;
+					feeds = allFeeds.reduce(
+						(acc: Record<number, Feed>, f: Feed) => ({ ...acc, [f.id]: f }),
+						{}
+					);
+					const superfeedsMap: Record<number, { id: number; name: string }[]> = {};
+					await Promise.all(
+						allFeeds.map(async (f) => {
+							const ids = await getSuperfeedIdsForFeed(f.id);
+							superfeedsMap[f.id] = ids
+								.map((id) => {
+									const s = allSuperfeeds.find((s) => s.id === id);
+									return s ? { id: s.id, name: s.name } : null;
+								})
+								.filter(Boolean) as { id: number; name: string }[];
+						})
+					);
+					feedSuperfeeds = superfeedsMap;
+				}
+				loading = false;
+				loadingMore = false;
+				return;
+			}
 			if (nav.current.type === 'SuperfeedFeeds' && nav.current.id != null) {
 				const [list, superfeedsRes] = await Promise.all([
 					getSuperfeedFeeds(nav.current.id),
@@ -190,6 +379,9 @@
 
 			let newArticles: Article[] = [];
 			const filter = nav.current.filter || 'Unread';
+			if (!append) {
+				nav.current.offset = 0;
+			}
 			const offset = nav.current.offset || 0;
 
 			if (nav.current.type === 'All') {
@@ -224,6 +416,10 @@
 				})
 			);
 			articleTags = append ? { ...articleTags, ...tagMap } : tagMap;
+			if (!append) {
+				await tick();
+				window.scrollTo(0, 0);
+			}
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : String(e);
 			articleLoadError = msg;
@@ -255,17 +451,16 @@
 			{ threshold: 0.1 }
 		);
 
-		// Background refresh every hour: fetch new articles from all feeds; UI Refresh button only re-reads from DB
-		const hourMs = 60 * 60 * 1000;
+		// Background: every 5 min ask backend to refresh any feeds whose next_poll_after has passed (backend skips the rest)
+		const pollIntervalMs = 5 * 60 * 1000;
 		const intervalId = setInterval(() => {
 			refreshAllFeeds()
-				.then(() => loadData())
+				.then(() => refetchCurrentViewArticlesOnly())
 				.catch(() => {});
-		}, hourMs);
-
-		// Also refresh once at startup so new articles appear without waiting for the first hour
+		}, pollIntervalMs);
+		// Once at startup: refresh due feeds so new articles appear without waiting for first interval
 		refreshAllFeeds()
-			.then(() => loadData())
+			.then(() => refetchCurrentViewArticlesOnly())
 			.catch(() => {});
 
 		// Undo: Cmd+Z (Mac) or Ctrl+Z (Windows)
@@ -321,15 +516,27 @@
 			addingFeed = true;
 			errorMsg = null;
 			await addFeed(url, feedType, 1); // Always add to "All" first
-			const feeds = await getAllFeeds();
-			const newFeed = feeds.find((f) => f.url === url);
+			const feedsRes = await getAllFeeds();
+			const newFeed = feedsRes.find((f) => f.url === url);
 			if (newFeed) {
 				for (const id of selectedSuperfeedIds) {
 					if (id === 1) continue; // Already in All
 					await addFeedToSuperfeed(newFeed.id, id);
 				}
+				allFeeds = feedsRes;
+				feeds = { ...feeds, [newFeed.id]: newFeed };
+				const superfeedList = selectedSuperfeedIds
+					.map((id) => {
+						const s = allSuperfeeds.find((x) => x.id === id);
+						return s ? { id: s.id, name: s.name } : null;
+					})
+					.filter(Boolean) as { id: number; name: string }[];
+				feedSuperfeeds = { ...feedSuperfeeds, [newFeed.id]: superfeedList };
+				// If on All or a Superfeed that now includes this feed, refresh article list
+				if (nav.current.type === 'All' || (nav.current.type === 'Superfeed' && nav.current.id != null && selectedSuperfeedIds.includes(nav.current.id))) {
+					await refetchCurrentViewArticlesOnly();
+				}
 			}
-			await loadData();
 		} catch (e: unknown) {
 			const msg = e instanceof Error ? e.message : String(e);
 			errorMsg = `Failed to add feed: ${msg}`;
@@ -342,7 +549,7 @@
 	async function handleCreateSuperfeed(name: string) {
 		try {
 			await createSuperfeed(name);
-			await loadData();
+			allSuperfeeds = await getAllSuperfeeds();
 		} catch (e) {
 			console.error(e);
 		}
@@ -351,7 +558,7 @@
 	async function handleCreateTag(name: string) {
 		try {
 			await createTag(name);
-			await loadData();
+			allTags = await getAllTags();
 		} catch (e) {
 			console.error(e);
 		}
@@ -375,7 +582,18 @@
 			}
 			addToSuperfeedTargetData = null;
 			errorMsg = null;
-			await loadData();
+			// Patch feedSuperfeeds for this feed
+			const list = selectedSuperfeedIds
+				.map((id) => {
+					const s = allSuperfeeds.find((x) => x.id === id);
+					return s ? { id: s.id, name: s.name } : null;
+				})
+				.filter(Boolean) as { id: number; name: string }[];
+			feedSuperfeeds = { ...feedSuperfeeds, [feedId]: list };
+			// If we're on a Superfeed view that includes this feed, refresh article list
+			if (nav.current.type === 'Superfeed' && nav.current.id != null && selectedSuperfeedIds.includes(nav.current.id)) {
+				await refetchCurrentViewArticlesOnly();
+			}
 		} catch (e) {
 			const msg = e instanceof Error ? e.message : String(e);
 			errorMsg = `Couldn't update superfeeds: ${msg}`;
@@ -386,7 +604,16 @@
 	async function handleAddFeedToSuperfeed(feedId: number, superfeedId: number) {
 		try {
 			await addFeedToSuperfeed(feedId, superfeedId);
-			await loadData();
+			const s = allSuperfeeds.find((x) => x.id === superfeedId);
+			if (s) {
+				const current = feedSuperfeeds[feedId] ?? [];
+				if (!current.some((e) => e.id === superfeedId)) {
+					feedSuperfeeds = { ...feedSuperfeeds, [feedId]: [...current, { id: s.id, name: s.name }] };
+				}
+			}
+			if (nav.current.type === 'Superfeed' && nav.current.id === superfeedId) {
+				await refetchCurrentViewArticlesOnly();
+			}
 		} catch (e) {
 			console.error(e);
 		}
@@ -464,12 +691,32 @@
 					Gathering articles…
 				</div>
 			</div>
+		{:else if nav.current.type === 'FeedCard' && nav.current.id != null}
+			{@const feedForCard = allFeeds.find((f) => f.id === nav.current.id) ?? feeds[nav.current.id!]}
+			{#if feedForCard}
+				<div class="flex justify-center px-6">
+					<div class="w-full min-w-72 max-w-sm">
+						<FeedCard
+							feed={feedForCard}
+							superfeeds={(feedSuperfeeds[feedForCard.id] ?? []).filter((s) => s.id !== ALL_SUPERFEED_ID)}
+							onSuperfeedClick={(id, name) => nav.push({ type: 'Superfeed', id, name })}
+							onClick={() => nav.push({ type: 'Feed', id: feedForCard.id, name: feedForCard.name })}
+							onSettings={() => (settingsTarget = { type: 'feed', feed: feedForCard })}
+							onContextMenu={(e) => {
+								contextMenu = { x: e.clientX, y: e.clientY, type: 'feed', feedId: feedForCard.id, feed: feedForCard };
+							}}
+						/>
+					</div>
+				</div>
+			{:else}
+				<div class="flex items-center justify-center h-64 text-muted-foreground">Loading feed…</div>
+			{/if}
 		{:else if nav.current.type === 'FeedsList'}
 			<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 px-6">
 				{#each allFeeds as f (f.id)}
 					<FeedCard
 						feed={f}
-						superfeeds={feedSuperfeeds[f.id] ?? []}
+						superfeeds={(feedSuperfeeds[f.id] ?? []).filter((s) => s.id !== ALL_SUPERFEED_ID)}
 						onSuperfeedClick={(id, name) => nav.push({ type: 'Superfeed', id, name })}
 						onClick={() => nav.push({ type: 'Feed', id: f.id, name: f.name })}
 						onSettings={() => (settingsTarget = { type: 'feed', feed: f })}
@@ -522,7 +769,7 @@
 				{#each superfeedFeedsList as f (f.id)}
 					<FeedCard
 						feed={f}
-						superfeeds={feedSuperfeeds[f.id] ?? []}
+						superfeeds={(feedSuperfeeds[f.id] ?? []).filter((s) => s.id !== ALL_SUPERFEED_ID)}
 						onSuperfeedClick={(id, name) => nav.push({ type: 'Superfeed', id, name })}
 						onClick={() => nav.push({ type: 'Feed', id: f.id, name: f.name })}
 						onSettings={() => (settingsTarget = { type: 'feed', feed: f })}
@@ -675,6 +922,12 @@
 										id: a.feed,
 										name: feeds[a.feed]?.name || 'Feed'
 									}),
+								onShowFeedCard: () =>
+									nav.push({
+										type: 'FeedCard',
+										id: a.feed,
+										name: feeds[a.feed]?.name || 'Feed'
+									}),
 								read: a.read
 							};
 						})()
@@ -718,7 +971,7 @@
 				feedForMenu
 					? (feedId) => {
 							contextMenu = null;
-							readAllArticlesInFeed(feedId).then(() => loadData()).catch((e) => console.error(e));
+							readAllArticlesInFeed(feedId).then(() => refetchCurrentViewArticlesOnly()).catch((e) => console.error(e));
 						}
 					: undefined
 			}
@@ -790,6 +1043,8 @@
 				const p = pendingDelete;
 				pendingDelete = null;
 				if (!p) return;
+				const scrollY = window.scrollY;
+				const scrollX = window.scrollX;
 				try {
 					if (p.type === 'feed') {
 						await deleteFeed(p.id);
@@ -804,6 +1059,9 @@
 							{}
 						);
 						superfeedFeedsList = superfeedFeedsList.filter((f) => f.id !== p.id);
+						feedSuperfeeds = Object.fromEntries(
+							Object.entries(feedSuperfeeds).filter(([k]) => +k !== p.id)
+						) as Record<number, { id: number; name: string }[]>;
 					} else if (p.type === 'superfeed') {
 						await deleteSuperfeed(p.id);
 						if (nav.current.type === 'Superfeed' && nav.current.id === p.id) {
@@ -811,14 +1069,28 @@
 						}
 						allSuperfeeds = allSuperfeeds.filter((s) => s.id !== p.id);
 						feedSuperfeedsList = feedSuperfeedsList.filter((s) => s.id !== p.id);
+						// Remove this superfeed from every feed's feedSuperfeeds entry
+						const next: Record<number, { id: number; name: string }[]> = {};
+						for (const [fid, list] of Object.entries(feedSuperfeeds)) {
+							next[+fid] = list.filter((x) => x.id !== p.id);
+						}
+						feedSuperfeeds = next;
 					} else if (p.type === 'tag') {
 						await deleteTag(p.id);
 						if (nav.current.type === 'Tag' && nav.current.id === p.id) {
 							nav.push({ type: 'TagsList', name: 'Tags' });
 						}
 						allTags = allTags.filter((t) => t.id !== p.id);
+						// Remove this tag from every article's articleTags entry
+						const next: Record<number, TagType[]> = {};
+						for (const [aid, tags] of Object.entries(articleTags)) {
+							next[+aid] = tags.filter((t) => t.id !== p.id);
+						}
+						articleTags = next;
 					}
-					await loadData();
+					await refetchCurrentView();
+					await tick();
+					window.scrollTo(scrollX, scrollY);
 				} catch (e) {
 					errorMsg = e instanceof Error ? e.message : String(e);
 				}
@@ -828,23 +1100,26 @@
 	{/if}
 
 	{#if settingsTarget?.type === 'feed' && settingsTarget.feed}
+		{@const feedId = settingsTarget.feed.id}
 		<FeedSettingsModal
 			feed={settingsTarget.feed}
 			superfeeds={allSuperfeeds}
 			onClose={() => (settingsTarget = null)}
-			onSaved={() => loadData()}
+			onSaved={(updated) => patchFeedInState(feedId, updated)}
 		/>
 	{:else if settingsTarget?.type === 'superfeed' && settingsTarget.superfeed}
+		{@const superfeedId = settingsTarget.superfeed.id}
 		<SuperfeedSettingsModal
 			superfeed={settingsTarget.superfeed}
 			onClose={() => (settingsTarget = null)}
-			onSaved={() => loadData()}
+			onSaved={(updated) => patchSuperfeedInState(superfeedId, updated)}
 		/>
 	{:else if settingsTarget?.type === 'tag' && settingsTarget.tag}
+		{@const tagId = settingsTarget.tag.id}
 		<TagSettingsModal
 			tag={settingsTarget.tag}
 			onClose={() => (settingsTarget = null)}
-			onSaved={() => loadData()}
+			onSaved={(updated) => patchTagInState(tagId, updated)}
 		/>
 	{/if}
 

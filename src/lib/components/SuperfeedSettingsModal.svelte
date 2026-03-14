@@ -7,7 +7,7 @@
 	let { superfeed, onClose, onSaved } = $props<{
 		superfeed: Superfeed;
 		onClose: () => void;
-		onSaved: () => void;
+		onSaved?: (updated: { name: string }) => void;
 	}>();
 
 	let name = $state(superfeed.name);
@@ -21,7 +21,7 @@
 		saving = true;
 		try {
 			await renameSuperfeed(superfeed.id, name.trim());
-			onSaved();
+			onSaved?.({ name: name.trim() });
 			onClose();
 		} catch (e) {
 			console.error(e);

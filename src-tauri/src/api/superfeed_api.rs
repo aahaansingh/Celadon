@@ -104,6 +104,7 @@ pub async fn get_feeds(db: &DbConn, id: i32, num: Option<u64>) -> Result<Vec<fee
     let selected_superfeed = get_superfeed(db, id).await?;
     let mut query = selected_superfeed
         .find_related(Feed)
+        .filter(feed::Column::Deleted.eq(false))
         .order_by(feed::Column::Added, Order::Desc);
 
     if let Some(lim) = num {

@@ -32,6 +32,7 @@
 			onToggleRead: () => void;
 			onAddTag: () => void;
 			onShowFeed: () => void;
+			onShowFeedCard: () => void;
 			read: boolean;
 		};
 		superfeedId?: number;
@@ -97,6 +98,17 @@
 		>
 			<Eye class="w-4 h-4 text-muted-foreground" />
 			Show feed view
+		</button>
+		<button
+			type="button"
+			class="w-full px-4 py-2 text-left text-sm font-body flex items-center gap-2 hover:bg-muted transition-colors"
+			onclick={() => {
+				articleActions.onShowFeedCard();
+				onClose();
+			}}
+		>
+			<Rss class="w-4 h-4 text-muted-foreground" />
+			Show feed
 		</button>
 	{:else if type === 'feed' && feedId != null}
 		{#if onCopyFeedLink && feed?.url}

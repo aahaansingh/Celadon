@@ -68,9 +68,9 @@
 >
 	<div class="flex-1 overflow-hidden flex flex-col gap-2">
 		<div class="flex items-start justify-between gap-2 min-h-0">
-			<div class="min-w-0 flex-1 overflow-hidden" style="max-height: calc(3 * 1.25 * 0.875rem);">
+			<div class="min-w-0 flex-1 overflow-hidden" style="max-height: calc(3 * 1.25 * 0.875rem + 0.2rem);">
 				<h3
-					class="line-clamp-3 text-sm font-heading leading-snug group-hover:text-primary transition-colors break-words"
+					class="line-clamp-3 text-sm font-heading leading-snug group-hover:text-primary transition-colors break-words pb-px"
 				>
 					{decodeHtmlEntities(article.name)}
 				</h3>
@@ -91,8 +91,8 @@
 		</div>
 
 		{#if descriptionPreview}
-			<div class="min-h-0 overflow-hidden">
-				<p class="text-xs text-muted-foreground font-body italic line-clamp-2 overflow-hidden leading-snug">
+			<div class="min-h-0 overflow-hidden" style="max-height: calc(2 * 1.25 * 0.75rem + 0.15rem);">
+				<p class="text-xs text-muted-foreground font-body italic line-clamp-2 overflow-hidden leading-snug pb-px">
 					{descriptionPreview}
 				</p>
 			</div>
@@ -107,11 +107,11 @@
 		</div>
 	</div>
 
-	<div class="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border">
+	<div class="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-border min-h-[28px] items-center">
 		<div class="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
 			{#if feed}
 				<span
-					class={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0 ${typeColors[feed.feed_type]}`}
+					class={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shrink-0 leading-none flex items-center ${typeColors[feed.feed_type]}`}
 				>
 					{typeLabels[feed.feed_type]}
 				</span>

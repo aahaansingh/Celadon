@@ -27,6 +27,7 @@
 		type Tag,
 		type ReadFilter
 	} from '$lib/api';
+	import { isSoloListCommand } from '$lib/commandBarCommands';
 
 	function cn(...inputs: ClassValue[]) {
 		return twMerge(clsx(inputs));
@@ -50,7 +51,21 @@
 		const value = target.value;
 		searchQuery = value;
 
-		if (value.startsWith('\\f:')) {
+		if (value.startsWith('\\fs:')) {
+			const q = value.slice(4);
+			const results = await searchSuperfeeds(q);
+			suggestions = results.map((s: Superfeed) => ({
+				id: s.id,
+				name: s.name,
+				type: 'superfeed' as const
+			}));
+			showSuggestions = suggestions.length > 0;
+		} else if (value.startsWith('\\sf:')) {
+			const q = value.slice(4);
+			const results = await searchFeeds(q);
+			suggestions = results.map((f: Feed) => ({ id: f.id, name: f.name, type: 'feed' as const }));
+			showSuggestions = suggestions.length > 0;
+		} else if (value.startsWith('\\f:')) {
 			const q = value.slice(3);
 			const results = await searchFeeds(q);
 			suggestions = results.map((f: Feed) => ({ id: f.id, name: f.name, type: 'feed' as const }));
@@ -69,15 +84,24 @@
 			const results = await searchTags(q);
 			suggestions = results.map((t: Tag) => ({ id: t.id, name: t.name, type: 'tag' as const }));
 			showSuggestions = suggestions.length > 0;
+		} else if (value.trim() === '\\fs' || value.trim() === '\\sf') {
+			// Solo \fs / \sf: no suggestions (Enter will run parseAndExecute)
+			showSuggestions = false;
+			suggestions = [];
 		} else if (value.trim().length >= 2) {
-			// Plain search: show article suggestions as autocomplete
-			try {
-				const results = await searchArticles(value.trim(), 'Unread', 5, 0);
-				suggestions = results.map((a) => ({ id: a.id, name: a.name, type: 'article' as const }));
-				showSuggestions = suggestions.length > 0;
-			} catch {
-				suggestions = [];
+			// Plain search: show article suggestions as autocomplete (do not run for slash commands)
+			if (value.trim().startsWith('\\')) {
 				showSuggestions = false;
+				suggestions = [];
+			} else {
+				try {
+					const results = await searchArticles(value.trim(), 'Unread', 5, 0);
+					suggestions = results.map((a) => ({ id: a.id, name: a.name, type: 'article' as const }));
+					showSuggestions = suggestions.length > 0;
+				} catch {
+					suggestions = [];
+					showSuggestions = false;
+				}
 			}
 		} else {
 			showSuggestions = false;
@@ -91,6 +115,21 @@
 		// Check if there was a chained command already typed
 		if (searchQuery.includes('\\a')) filter = 'All';
 		if (searchQuery.includes('\\r')) filter = 'Read';
+
+		// \fs: → show feeds in selected superfeed
+		if (searchQuery.startsWith('\\fs:') && suggestion.type === 'superfeed') {
+			nav.push({ type: 'SuperfeedFeeds', id: suggestion.id, name: `Feeds in ${suggestion.name}` });
+			searchQuery = '';
+			showSuggestions = false;
+			return;
+		}
+		// \sf: → show superfeeds for selected feed
+		if (searchQuery.startsWith('\\sf:') && suggestion.type === 'feed') {
+			nav.push({ type: 'FeedSuperfeeds', id: suggestion.id, name: `Superfeeds for ${suggestion.name}` });
+			searchQuery = '';
+			showSuggestions = false;
+			return;
+		}
 
 		if (suggestion.type === 'feed') {
 			nav.push({ type: 'Feed', id: suggestion.id, name: suggestion.name, filter });
@@ -114,10 +153,14 @@
 			e.preventDefault();
 			selectedIndex = (selectedIndex - 1 + suggestions.length) % suggestions.length;
 		} else if (e.key === 'Enter') {
-			if (selectedIndex >= 0 && showSuggestions) {
-				applySuggestion(suggestions[selectedIndex]);
-			} else if (searchQuery.trim()) {
-				parseAndExecute(searchQuery.trim());
+			const trimmed = searchQuery.trim();
+			if (showSuggestions && suggestions.length > 0 && !isSoloListCommand(trimmed)) {
+				// Search mode (\f:query, \s:query, \t:query, \fs:query, \sf:query, or plain search): use selected or first result
+				const index = selectedIndex >= 0 ? selectedIndex : 0;
+				applySuggestion(suggestions[index]);
+			} else if (trimmed) {
+				// No suggestions, or solo \f / \s / \t: run command (list view or exact match)
+				parseAndExecute(trimmed);
 				searchQuery = '';
 				showSuggestions = false;
 			}
@@ -209,6 +252,16 @@
 			nav.push({ type: 'SuperfeedsList', name: 'All Superfeeds' });
 		} else if (cleanQuery === '\\t') {
 			nav.push({ type: 'TagsList', name: 'All Tags' });
+		} else if (cleanQuery === '\\fs') {
+			nav.push({ type: 'SuperfeedsList', name: 'All Superfeeds' });
+		} else if (cleanQuery === '\\sf') {
+			nav.push({ type: 'FeedsList', name: 'All Feeds' });
+		} else if (cleanQuery.startsWith('\\fs:')) {
+			// No suggestion selected → go to superfeeds list so user can pick one
+			nav.push({ type: 'SuperfeedsList', name: 'All Superfeeds' });
+		} else if (cleanQuery.startsWith('\\sf:')) {
+			// No suggestion selected → go to feeds list so user can pick one
+			nav.push({ type: 'FeedsList', name: 'All Feeds' });
 		} else if (cleanQuery.startsWith('\\f:')) {
 			const name = cleanQuery.slice(3);
 			nav.push({ type: 'Feed', name: `Feed: ${name}`, query: name, filter });
@@ -253,7 +306,7 @@
 						class="absolute -inset-1 bg-gradient-to-tr from-primary to-celadon-light rounded-lg blur opacity-25 group-hover:opacity-50 transition duration-500"
 					></div>
 					<img
-						src="/logo.png"
+						src="/celadon.svg"
 						alt="Celadon"
 						class="relative w-8 h-8 rounded-lg shadow-inner bg-background"
 					/>

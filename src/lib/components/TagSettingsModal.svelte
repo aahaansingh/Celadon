@@ -7,7 +7,7 @@
 	let { tag, onClose, onSaved } = $props<{
 		tag: Tag;
 		onClose: () => void;
-		onSaved: () => void;
+		onSaved?: (updated: { name: string }) => void;
 	}>();
 
 	let name = $state(tag.name);
@@ -21,7 +21,7 @@
 		saving = true;
 		try {
 			await renameTag(tag.id, name.trim());
-			onSaved();
+			onSaved?.({ name: name.trim() });
 			onClose();
 		} catch (e) {
 			console.error(e);

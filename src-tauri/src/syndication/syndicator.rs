@@ -232,7 +232,6 @@ pub async fn url_to_feed(
                     new_feed(db, feed_obj, feed_url.clone(), superfeed_id, feed_type).await?;
                     let feed_id = feed_api::get_feed_by_url(db, feed_url).await?.expect("just created").id;
                     feed_api::update_feed_conditional_headers(db, feed_id, etag, last_modified).await?;
-                    // Compliant: do not poll this feed again for at least 1 hour (e.g. if refresh runs again).
                     feed_api::update_feed_next_poll_after(
                         db,
                         feed_id,
@@ -299,7 +298,6 @@ pub async fn url_to_feed(
                     )
                     .await?;
                     feed_api::update_feed_status(db, matched_feed.id, 0).await?;
-                    // Compliant: poll at most once per hour (even on 304).
                     feed_api::update_feed_next_poll_after(
                         db,
                         matched_feed.id,
@@ -430,6 +428,13 @@ pub async fn new_feed(
                 let published = unwrap_date(article.pub_date.clone());
                 let expiry_at = calculate_expiry(published, &feed_type);
                 let already_expired = Utc::now() >= expiry_at;
+                // Prefer content:encoded (full article HTML) over description (often just a summary); Substack and others use content:encoded
+                let description = article
+                    .content
+                    .clone()
+                    .filter(|s| !s.trim().is_empty())
+                    .or_else(|| article.description.clone())
+                    .unwrap_or_else(|| "No description provided.".to_owned());
                 article_api::create_article(
                     db,
                     article_api::article_max_id(db).await? + 1,
@@ -438,10 +443,7 @@ pub async fn new_feed(
                     published,
                     expiry_at,
                     already_expired,
-                    unwrap_default(
-                        article.description.clone(),
-                        "No description provided.".to_owned(),
-                    ),
+                    description,
                     feed_id,
                 )
                 .await?;
@@ -453,6 +455,12 @@ pub async fn new_feed(
                 let published = unwrap_default(article.published, article.updated.clone()).to_utc();
                 let expiry_at = calculate_expiry(published, &feed_type);
                 let already_expired = Utc::now() >= expiry_at;
+                // Substack and some Atom feeds use only <summary> or have empty <content>; fall back to summary
+                let default_desc = article
+                    .summary
+                    .as_ref()
+                    .map(|t| t.value.clone())
+                    .unwrap_or_else(|| "No description provided.".to_owned());
                 article_api::create_article(
                     db,
                     article_api::article_max_id(db).await? + 1,
@@ -465,10 +473,7 @@ pub async fn new_feed(
                     published,
                     expiry_at,
                     already_expired,
-                    unwrap_atom_content(
-                        article.content.clone(),
-                        "No description provided.".to_owned(),
-                    ),
+                    unwrap_atom_content(article.content.clone(), default_desc),
                     feed_id,
                 )
                 .await?;
@@ -533,6 +538,13 @@ pub async fn update_feed(
                             let published = unwrap_date(article.pub_date.clone());
                             let expiry_at = calculate_expiry(published, &feed_model.feed_type);
                             let already_expired = Utc::now() >= expiry_at;
+                            // Prefer content:encoded (full article HTML) over description; Substack uses content:encoded
+                            let description = article
+                                .content
+                                .clone()
+                                .filter(|s| !s.trim().is_empty())
+                                .or_else(|| article.description.clone())
+                                .unwrap_or_else(|| "No description provided.".to_owned());
                             article_api::create_article(
                                 db,
                                 article_api::article_max_id(db).await? + 1,
@@ -541,10 +553,7 @@ pub async fn update_feed(
                                 published,
                                 expiry_at,
                                 already_expired,
-                                unwrap_default(
-                                    article.description.clone(),
-                                    "No description provided.".to_owned(),
-                                ),
+                                description,
                                 id,
                             )
                             .await?;
@@ -568,6 +577,12 @@ pub async fn update_feed(
                             .to_utc();
                         let expiry_at = calculate_expiry(published, &feed_model.feed_type);
                         let already_expired = Utc::now() >= expiry_at;
+                        // Substack and some Atom feeds use only <summary> or have empty <content>; fall back to summary
+                        let default_desc = article
+                            .summary
+                            .as_ref()
+                            .map(|t| t.value.clone())
+                            .unwrap_or_else(|| "No description provided.".to_owned());
                         article_api::create_article(
                             db,
                             article_api::article_max_id(db).await? + 1,
@@ -576,10 +591,7 @@ pub async fn update_feed(
                             published,
                             expiry_at,
                             already_expired,
-                            unwrap_atom_content(
-                                article.content.clone(),
-                                "No description provided.".to_owned(),
-                            ),
+                            unwrap_atom_content(article.content.clone(), default_desc),
                             id,
                         )
                         .await?;
