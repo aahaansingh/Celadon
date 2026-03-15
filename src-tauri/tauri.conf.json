@@ -6,7 +6,7 @@
     "distDir": "../build"
   },
   "package": {
-    "productName": "celadon",
+    "productName": "Celadon",
     "version": "0.1.0"
   },
   "tauri": {
@@ -38,7 +38,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "com.tauri.dev",
+      "identifier": "app.celadon",
       "longDescription": "",
       "macOS": {
         "entitlements": null,
@@ -67,7 +67,7 @@
         "fullscreen": false,
         "height": 600,
         "resizable": true,
-        "title": "celadon",
+        "title": "Celadon",
         "width": 800
       }
     ]
