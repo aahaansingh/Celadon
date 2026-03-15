@@ -28,9 +28,20 @@
 		type ReadFilter
 	} from '$lib/api';
 	import { isSoloListCommand } from '$lib/commandBarCommands';
+	import { tick } from 'svelte';
 
 	function cn(...inputs: ClassValue[]) {
 		return twMerge(clsx(inputs));
+	}
+
+	/** Move this element to document.body so it is not clipped by header overflow. */
+	function portal(node: HTMLElement) {
+		document.body.appendChild(node);
+		return {
+			destroy() {
+				node.remove();
+			}
+		};
 	}
 
 	let { onAdd, onToggleDarkMode, darkMode, onRefresh, onOpenArticle } = $props<{
@@ -45,6 +56,31 @@
 	let suggestions = $state<{ id: number; name: string; type: 'feed' | 'superfeed' | 'tag' | 'article' }[]>([]);
 	let showSuggestions = $state(false);
 	let selectedIndex = $state(-1);
+	let searchInputRef = $state<HTMLInputElement | null>(null);
+	let dropdownRect = $state<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
+
+	function updateDropdownRect() {
+		if (searchInputRef && showSuggestions && suggestions.length > 0) {
+			const r = searchInputRef.getBoundingClientRect();
+			dropdownRect = { top: r.bottom + 8, left: r.left, width: r.width };
+		}
+	}
+
+	$effect(() => {
+		if (showSuggestions && suggestions.length > 0 && searchInputRef) {
+			// Measure after DOM updates so dropdownRect is set before next paint
+			tick().then(() => updateDropdownRect());
+			const raf = requestAnimationFrame(() => updateDropdownRect());
+			const onScrollOrResize = () => updateDropdownRect();
+			window.addEventListener('scroll', onScrollOrResize, true);
+			window.addEventListener('resize', onScrollOrResize);
+			return () => {
+				cancelAnimationFrame(raf);
+				window.removeEventListener('scroll', onScrollOrResize, true);
+				window.removeEventListener('resize', onScrollOrResize);
+			};
+		}
+	});
 
 	async function handleInput(e: Event) {
 		const target = e.target as HTMLInputElement;
@@ -154,8 +190,14 @@
 			selectedIndex = (selectedIndex - 1 + suggestions.length) % suggestions.length;
 		} else if (e.key === 'Enter') {
 			const trimmed = searchQuery.trim();
-			if (showSuggestions && suggestions.length > 0 && !isSoloListCommand(trimmed)) {
-				// Search mode (\f:query, \s:query, \t:query, \fs:query, \sf:query, or plain search): use selected or first result
+			const isPlainSearch = trimmed.length >= 2 && !trimmed.startsWith('\\');
+			if (isPlainSearch) {
+				// Raw search: show all matching articles in the view; do not go to first suggestion
+				parseAndExecute(trimmed);
+				searchQuery = '';
+				showSuggestions = false;
+			} else if (showSuggestions && suggestions.length > 0 && !isSoloListCommand(trimmed)) {
+				// Slash-command with suggestions: use selected or first result
 				const index = selectedIndex >= 0 ? selectedIndex : 0;
 				applySuggestion(suggestions[index]);
 			} else if (trimmed) {
@@ -290,10 +332,10 @@
 </script>
 
 <div
-	class="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm"
+	class="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm overflow-x-auto"
 >
-	<div class="container mx-auto px-6 py-3">
-		<div class="flex items-center gap-4">
+	<div class="container mx-auto px-6 py-3 min-w-0">
+		<div class="flex items-center gap-4 min-w-[600px]">
 			<!-- Logo & Breadcrumbs (content-sized, max-w-md so path truncates; search bar fills the rest) -->
 			<div class="flex items-center gap-4 min-w-0 max-w-md shrink-0">
 				<button
@@ -347,8 +389,8 @@
 				</button>
 			</div>
 
-			<!-- Unified Search & Command Bar (dynamic: grows with space, shrinks when nav path needs room) -->
-			<div class="flex-1 relative group min-w-0">
+			<!-- Unified Search & Command Bar (dynamic: grows with space, min width so it stays usable) -->
+			<div class="flex-1 relative group min-w-[12rem]">
 				<Search
 					class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors"
 				/>
@@ -356,58 +398,13 @@
 					type="text"
 					placeholder="Search or enter command"
 					bind:value={searchQuery}
+					bind:this={searchInputRef}
 					oninput={handleInput}
 					onkeydown={handleKeydown}
 					onfocus={() => (showSuggestions = suggestions.length > 0)}
 					onblur={() => setTimeout(() => (showSuggestions = false), 200)}
 					class="w-full pl-10 pr-4 py-2 bg-muted/20 border border-primary/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all font-body text-sm placeholder:text-muted-foreground/50"
 				/>
-
-				<!-- Suggestions Dropdown -->
-				{#if showSuggestions && suggestions.length > 0}
-					<div
-						class="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200"
-					>
-						<div
-							class="p-2 border-b border-border/50 bg-muted/30 text-[10px] uppercase tracking-wider font-bold text-muted-foreground flex justify-between items-center"
-						>
-							<span>Suggestions</span>
-							<span class="flex gap-2">
-								<kbd class="px-1.5 py-0.5 rounded bg-background border border-border shadow-sm"
-									>↵</kbd
-								>
-								<kbd class="px-1.5 py-0.5 rounded bg-background border border-border shadow-sm"
-									>↑↓</kbd
-								>
-							</span>
-						</div>
-						<div class="max-h-64 overflow-y-auto py-1">
-							{#each suggestions as s, i}
-								<button
-									onclick={() => applySuggestion(s)}
-									class={cn(
-										'w-full px-4 py-2 text-left flex items-center gap-3 transition-colors',
-										i === selectedIndex ? 'bg-primary/10 text-primary' : 'hover:bg-muted'
-									)}
-								>
-									{#if s.type === 'feed'}
-										<Radio class="w-4 h-4 opacity-50" />
-									{:else if s.type === 'superfeed'}
-										<Layers class="w-4 h-4 opacity-50" />
-									{:else if s.type === 'tag'}
-										<Hash class="w-4 h-4 opacity-50" />
-									{:else}
-										<Search class="w-4 h-4 opacity-50" />
-									{/if}
-									<span class="text-sm font-body font-medium line-clamp-1">{s.name}</span>
-									<span class="ml-auto text-[10px] opacity-40 uppercase tracking-tighter shrink-0"
-										>{s.type}</span
-									>
-								</button>
-							{/each}
-						</div>
-					</div>
-				{/if}
 			</div>
 
 			<!-- Actions -->
@@ -458,6 +455,49 @@
 		</div>
 	</div>
 </div>
+
+<!-- Suggestions dropdown: portaled to body so it is not clipped by header overflow -->
+{#if showSuggestions && suggestions.length > 0}
+	<div
+		use:portal
+		class="fixed bg-background border border-border rounded-xl shadow-2xl overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200"
+		style="top: {dropdownRect.top}px; left: {dropdownRect.left}px; width: {dropdownRect.width > 0 ? dropdownRect.width + 'px' : '12rem'}; min-width: 12rem;"
+	>
+		<div
+			class="p-2 border-b border-border/50 bg-muted/30 text-[10px] uppercase tracking-wider font-bold text-muted-foreground flex justify-between items-center"
+		>
+			<span>Suggestions</span>
+			<span class="flex gap-2">
+				<kbd class="px-1.5 py-0.5 rounded bg-background border border-border shadow-sm">↵</kbd>
+				<kbd class="px-1.5 py-0.5 rounded bg-background border border-border shadow-sm">↑↓</kbd>
+			</span>
+		</div>
+		<div class="max-h-64 overflow-y-auto py-1">
+			{#each suggestions as s, i}
+				<button
+					type="button"
+					onclick={() => applySuggestion(s)}
+					class={cn(
+						'w-full px-4 py-2 text-left flex items-center gap-3 transition-colors',
+						i === selectedIndex ? 'bg-primary/10 text-primary' : 'hover:bg-muted'
+					)}
+				>
+					{#if s.type === 'feed'}
+						<Radio class="w-4 h-4 opacity-50" />
+					{:else if s.type === 'superfeed'}
+						<Layers class="w-4 h-4 opacity-50" />
+					{:else if s.type === 'tag'}
+						<Hash class="w-4 h-4 opacity-50" />
+					{:else}
+						<Search class="w-4 h-4 opacity-50" />
+					{/if}
+					<span class="text-sm font-body font-medium line-clamp-1">{s.name}</span>
+					<span class="ml-auto text-[10px] opacity-40 uppercase tracking-tighter shrink-0">{s.type}</span>
+				</button>
+			{/each}
+		</div>
+	</div>
+{/if}
 
 <style>
 	/* Subtle animations for the dropdown */

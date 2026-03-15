@@ -11,6 +11,8 @@ pub enum FeedType {
     Article,
     #[sea_orm(string_value = "Essay")]
     Essay,
+    #[sea_orm(string_value = "Update")]
+    Update,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize)]
@@ -22,8 +24,8 @@ pub struct Model {
     pub name: String,
     pub category: String,
     pub added: DateTime<Utc>,
-    pub last_fetched: DateTime<Utc>,
-    /// 0 = healthy, 1 = rate limited (diagnostic), 2–599 = HTTP error code (diagnostic)
+        pub last_fetched: DateTime<Utc>,
+        /// 0 = healthy, 1 = rate limited, 2–599 = HTTP error code
     pub status: i32,
     pub feed_type: FeedType,
     #[sea_orm(default_value = false)]

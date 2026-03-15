@@ -361,6 +361,7 @@ pub fn calculate_expiry(published: DateTime<Utc>, feed_type: &feed::FeedType) ->
         feed::FeedType::News => chrono::TimeDelta::days(1),
         feed::FeedType::Article => chrono::TimeDelta::days(3),
         feed::FeedType::Essay => chrono::TimeDelta::days(7),
+        feed::FeedType::Update => chrono::TimeDelta::hours(6),
     };
     published + duration
 }

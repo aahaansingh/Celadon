@@ -14,11 +14,11 @@
 		feed: Feed;
 		superfeeds: Superfeed[];
 		onClose: () => void;
-		onSaved?: (updated: { name: string; feed_type: 'News' | 'Article' | 'Essay'; superfeedIds: number[] }) => void;
+		onSaved?: (updated: { name: string; feed_type: 'News' | 'Article' | 'Essay' | 'Update'; superfeedIds: number[] }) => void;
 	}>();
 
 	let name = $state(feed.name);
-	let feedType = $state< 'News' | 'Article' | 'Essay'>(feed.feed_type);
+	let feedType = $state<'News' | 'Article' | 'Essay' | 'Update'>(feed.feed_type);
 	let superfeedIds = $state<Set<number>>(new Set());
 	let loading = $state(true);
 	let saving = $state(false);
@@ -94,11 +94,20 @@
 			</div>
 			<div>
 				<span class="text-xs font-heading font-bold text-muted-foreground block mb-1">Type</span>
-				<div class="flex gap-2 p-1 bg-muted rounded-2xl">
+				<div class="flex flex-wrap gap-2 p-1 bg-muted rounded-2xl">
+					<button
+						type="button"
+						onclick={() => (feedType = 'Update')}
+						class="flex-1 min-w-0 py-2 rounded-xl text-xs font-body font-medium transition-all {feedType === 'Update'
+							? 'bg-background shadow-sm ring-1 ring-border text-primary'
+							: 'text-muted-foreground'}"
+					>
+						Update (6h)
+					</button>
 					<button
 						type="button"
 						onclick={() => (feedType = 'News')}
-						class="flex-1 py-2 rounded-xl text-xs font-body font-medium transition-all {feedType === 'News'
+						class="flex-1 min-w-0 py-2 rounded-xl text-xs font-body font-medium transition-all {feedType === 'News'
 							? 'bg-background shadow-sm ring-1 ring-border text-primary'
 							: 'text-muted-foreground'}"
 					>
@@ -107,7 +116,7 @@
 					<button
 						type="button"
 						onclick={() => (feedType = 'Article')}
-						class="flex-1 py-2 rounded-xl text-xs font-body font-medium transition-all {feedType === 'Article'
+						class="flex-1 min-w-0 py-2 rounded-xl text-xs font-body font-medium transition-all {feedType === 'Article'
 							? 'bg-background shadow-sm ring-1 ring-border text-primary'
 							: 'text-muted-foreground'}"
 					>
@@ -116,7 +125,7 @@
 					<button
 						type="button"
 						onclick={() => (feedType = 'Essay')}
-						class="flex-1 py-2 rounded-xl text-xs font-body font-medium transition-all {feedType === 'Essay'
+						class="flex-1 min-w-0 py-2 rounded-xl text-xs font-body font-medium transition-all {feedType === 'Essay'
 							? 'bg-background shadow-sm ring-1 ring-border text-primary'
 							: 'text-muted-foreground'}"
 					>
@@ -155,13 +164,13 @@
 				<button
 					onclick={handleSave}
 					disabled={saving}
-					class="flex-1 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white font-heading font-bold rounded-xl"
+					class="flex-1 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white font-heading font-bold text-sm rounded-lg"
 				>
-					{saving ? 'Saving…' : 'Save'}
+					{saving ? 'Applying…' : 'Apply'}
 				</button>
 				<button
 					onclick={onClose}
-					class="px-4 py-2 bg-muted hover:bg-muted/80 rounded-xl font-heading text-sm"
+					class="flex-1 py-2 bg-muted hover:bg-muted/80 rounded-lg font-heading text-sm"
 				>
 					Cancel
 				</button>

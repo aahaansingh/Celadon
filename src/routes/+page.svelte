@@ -152,7 +152,7 @@
 	/** Patch feed in allFeeds, feeds, and feedSuperfeeds (no API call). */
 	function patchFeedInState(
 		feedId: number,
-		updates: { name?: string; feed_type?: 'News' | 'Article' | 'Essay'; superfeedIds?: number[] }
+		updates: { name?: string; feed_type?: 'News' | 'Article' | 'Essay' | 'Update'; superfeedIds?: number[] }
 	) {
 		const feed = allFeeds.find((f) => f.id === feedId) ?? feeds[feedId];
 		if (!feed) return;
@@ -430,11 +430,24 @@
 		}
 	}
 
+	let lastRefreshTime = 0;
+
 	$effect(() => {
 		// Watch nav.current for changes (type, id, filter, query)
 		// but ignore offset changes to handle them with infinite scroll logic manually
 		const { type, id, filter, query } = nav.current;
-		untrack(() => loadData());
+		untrack(() => {
+			loadData().then(() => {
+				// Run refresh at the next view change after an hour has passed (avoids interrupting article reading)
+				const oneHourMs = 60 * 60 * 1000;
+				if (lastRefreshTime > 0 && Date.now() - lastRefreshTime >= oneHourMs) {
+					lastRefreshTime = Date.now();
+					refreshAllFeeds()
+						.then(() => refetchCurrentViewArticlesOnly())
+						.catch(() => {});
+				}
+			});
+		});
 	});
 
 	// Handle infinite scroll
@@ -451,16 +464,12 @@
 			{ threshold: 0.1 }
 		);
 
-		// Background: every 5 min ask backend to refresh any feeds whose next_poll_after has passed (backend skips the rest)
-		const pollIntervalMs = 5 * 60 * 1000;
-		const intervalId = setInterval(() => {
-			refreshAllFeeds()
-				.then(() => refetchCurrentViewArticlesOnly())
-				.catch(() => {});
-		}, pollIntervalMs);
-		// Once at startup: refresh due feeds so new articles appear without waiting for first interval
+		// Once at startup: refresh due feeds so new articles appear
 		refreshAllFeeds()
 			.then(() => refetchCurrentViewArticlesOnly())
+			.then(() => {
+				lastRefreshTime = Date.now();
+			})
 			.catch(() => {});
 
 		// Undo: Cmd+Z (Mac) or Ctrl+Z (Windows)
@@ -476,7 +485,6 @@
 
 		return () => {
 			observer.disconnect();
-			clearInterval(intervalId);
 			document.removeEventListener('keydown', handleKeydown);
 		};
 	});
@@ -511,7 +519,7 @@
 		}
 	}
 
-	async function handleAddFeed(url: string, feedType: 'News' | 'Article' | 'Essay' = 'News', selectedSuperfeedIds: number[] = []) {
+	async function handleAddFeed(url: string, feedType: 'News' | 'Article' | 'Essay' | 'Update' = 'News', selectedSuperfeedIds: number[] = []) {
 		try {
 			addingFeed = true;
 			errorMsg = null;
@@ -1103,7 +1111,7 @@
 		{@const feedId = settingsTarget.feed.id}
 		<FeedSettingsModal
 			feed={settingsTarget.feed}
-			superfeeds={allSuperfeeds}
+			superfeeds={allSuperfeeds.filter((s) => s.id !== ALL_SUPERFEED_ID)}
 			onClose={() => (settingsTarget = null)}
 			onSaved={(updated) => patchFeedInState(feedId, updated)}
 		/>

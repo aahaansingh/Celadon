@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Article, Tag } from '$lib/api';
 	import { decodeHtmlEntities } from '$lib/sanitizeHtml';
-	import { X, Hash, Plus } from 'lucide-svelte';
+	import { X, Plus } from 'lucide-svelte';
 	import { fade, scale } from 'svelte/transition';
 
 	let {
@@ -103,7 +103,6 @@
 										<span class="w-2 h-2 rounded-full bg-primary"></span>
 									{/if}
 								</span>
-								<Hash class="w-3.5 h-3.5 text-muted-foreground shrink-0" />
 								<span class="min-w-0 truncate">{decodeHtmlEntities(tag.name)}</span>
 							</button>
 						{/each}
@@ -139,7 +138,7 @@
 				>
 					Apply
 				</button>
-				<button type="button" onclick={onClose} class="px-4 py-2 bg-muted hover:bg-muted/80 rounded-lg font-body text-sm">
+				<button type="button" onclick={onClose} class="flex-1 py-2 bg-muted hover:bg-muted/80 rounded-lg font-heading text-sm">
 					Cancel
 				</button>
 			</div>

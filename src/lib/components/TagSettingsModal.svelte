@@ -63,13 +63,13 @@
 				<button
 					onclick={handleSave}
 					disabled={saving}
-					class="flex-1 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white font-heading font-bold rounded-xl"
+					class="flex-1 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 text-white font-heading font-bold text-sm rounded-lg"
 				>
-					{saving ? 'Saving…' : 'Save'}
+					{saving ? 'Applying…' : 'Apply'}
 				</button>
 				<button
 					onclick={onClose}
-					class="px-4 py-2 bg-muted hover:bg-muted/80 rounded-xl font-heading text-sm"
+					class="flex-1 py-2 bg-muted hover:bg-muted/80 rounded-lg font-heading text-sm"
 				>
 					Cancel
 				</button>

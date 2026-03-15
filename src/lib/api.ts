@@ -32,7 +32,7 @@ export interface Feed {
     last_fetched: string;
     /** 0 = healthy, 1 = rate limited, 2–599 = most recent HTTP error code (for hover) */
     status: number;
-    feed_type: 'News' | 'Article' | 'Essay';
+    feed_type: 'News' | 'Article' | 'Essay' | 'Update';
     deleted: boolean;
     /** 0 = healthy, 1–2 = consecutive failures (yellow), 3 = dead (red) */
     consecutive_http_errors: number;
@@ -94,7 +94,7 @@ export const getSuperfeedIdsForFeed = (feedId: number) =>
 	invoke<number[]>('get_superfeed_ids_for_feed', { feedId });
 export const updateFeedName = (id: number, name: string) =>
 	invoke<void>('update_feed_name', { id, name });
-export const updateFeedType = (id: number, feedType: 'News' | 'Article' | 'Essay') =>
+export const updateFeedType = (id: number, feedType: 'News' | 'Article' | 'Essay' | 'Update') =>
 	invoke<void>('update_feed_type', { id, feedType });
 export const addFeedToSuperfeed = (feedId: number, superfeedId: number) =>
 	invoke<void>('add_feed_to_superfeed', { feedId, superfeedId });

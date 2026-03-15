@@ -28,7 +28,7 @@
 			<button
 				type="button"
 				onclick={onCancel}
-				class="px-4 py-2 rounded-lg font-body text-sm bg-muted hover:bg-muted/80 transition-colors"
+				class="px-4 py-2 rounded-lg font-heading text-sm bg-muted hover:bg-muted/80 transition-colors"
 			>
 				Cancel
 			</button>
@@ -38,7 +38,7 @@
 					onConfirm();
 					onCancel();
 				}}
-				class="px-4 py-2 rounded-lg font-body text-sm bg-red-600 hover:bg-red-700 text-white transition-colors"
+				class="px-4 py-2 rounded-lg font-heading text-sm bg-red-600 hover:bg-red-700 text-white transition-colors"
 			>
 				{confirmLabel}
 			</button>

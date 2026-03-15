@@ -7,7 +7,7 @@
 	let { isOpen, onClose, onAddFeed, onCreateSuperfeed, onCreateTag, onOpmlComplete, superfeeds = [] } = $props<{
 		isOpen: boolean;
 		onClose: () => void;
-		onAddFeed: (url: string, feedType: 'News' | 'Article' | 'Essay', selectedSuperfeedIds: number[]) => void;
+		onAddFeed: (url: string, feedType: 'News' | 'Article' | 'Essay' | 'Update', selectedSuperfeedIds: number[]) => void;
 		onCreateSuperfeed: (name: string) => void;
 		onCreateTag: (name: string) => void;
 		onOpmlComplete?: () => void;
@@ -16,7 +16,7 @@
 
 	let tab = $state<'feed' | 'superfeed' | 'tag' | 'opml'>('feed');
 	let inputVal = $state('');
-	let feedType = $state<'News' | 'Article' | 'Essay'>('News');
+	let feedType = $state<'News' | 'Article' | 'Essay' | 'Update'>('News');
 	let selectedSuperfeedIds = $state<Set<number>>(new Set());
 	let opmlStatus = $state<'idle' | 'importing' | 'exporting' | 'success' | 'error'>('idle');
 	let opmlMessage = $state('');
@@ -260,11 +260,20 @@
 					{#if tab === 'feed'}
 						<div class="space-y-2">
 							<span class="text-xs font-heading font-bold text-muted-foreground ml-1 block mb-1">Type</span>
-							<div class="flex gap-2 p-1 bg-muted rounded-2xl">
+							<div class="flex flex-wrap gap-2 p-1 bg-muted rounded-2xl">
+								<button
+									type="button"
+									onclick={() => (feedType = 'Update')}
+									class="flex-1 min-w-0 py-2 rounded-xl text-xs font-body font-medium transition-all {feedType === 'Update'
+										? 'bg-background shadow-sm ring-1 ring-border text-primary'
+										: 'text-muted-foreground'}"
+								>
+									Update (6h)
+								</button>
 								<button
 									type="button"
 									onclick={() => (feedType = 'News')}
-									class="flex-1 py-2 rounded-xl text-xs font-body font-medium transition-all {feedType === 'News'
+									class="flex-1 min-w-0 py-2 rounded-xl text-xs font-body font-medium transition-all {feedType === 'News'
 										? 'bg-background shadow-sm ring-1 ring-border text-primary'
 										: 'text-muted-foreground'}"
 								>
@@ -273,7 +282,7 @@
 								<button
 									type="button"
 									onclick={() => (feedType = 'Article')}
-									class="flex-1 py-2 rounded-xl text-xs font-body font-medium transition-all {feedType === 'Article'
+									class="flex-1 min-w-0 py-2 rounded-xl text-xs font-body font-medium transition-all {feedType === 'Article'
 										? 'bg-background shadow-sm ring-1 ring-border text-primary'
 										: 'text-muted-foreground'}"
 								>
@@ -282,7 +291,7 @@
 								<button
 									type="button"
 									onclick={() => (feedType = 'Essay')}
-									class="flex-1 py-2 rounded-xl text-xs font-body font-medium transition-all {feedType === 'Essay'
+									class="flex-1 min-w-0 py-2 rounded-xl text-xs font-body font-medium transition-all {feedType === 'Essay'
 										? 'bg-background shadow-sm ring-1 ring-border text-primary'
 										: 'text-muted-foreground'}"
 								>
@@ -293,7 +302,7 @@
 						{#if superfeedsExcludingAll.length > 0}
 							<div class="space-y-2">
 								<span class="text-xs font-heading font-bold text-muted-foreground ml-1 block mb-1">Add to superfeeds</span>
-								<div class="space-y-1 max-h-28 overflow-y-auto p-1 bg-muted rounded-2xl">
+								<div class="space-y-1 max-h-28 overflow-y-auto p-1 rounded-2xl">
 									{#each superfeedsExcludingAll as s (s.id)}
 										<button
 											type="button"

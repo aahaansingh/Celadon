@@ -98,7 +98,7 @@
 					>
 						Apply
 					</button>
-					<button type="button" onclick={onClose} class="px-4 py-2 bg-muted hover:bg-muted/80 rounded-lg font-body text-sm">
+					<button type="button" onclick={onClose} class="flex-1 py-2 bg-muted hover:bg-muted/80 rounded-lg font-heading text-sm">
 						Cancel
 					</button>
 				</div>

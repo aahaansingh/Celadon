@@ -4,13 +4,13 @@
 	"version": "0.0.1",
 	"type": "module",
 	"scripts": {
-		"dev": "vite dev",
+		"dev": "cp commands.md static/commands.md 2>/dev/null || true; vite dev",
 		"build": "vite build",
 		"preview": "vite preview",
 		"tauri": "tauri",
 		"tauri:dev": "tauri dev",
 		"tauri:build": "tauri build",
-		"prepare": "svelte-kit sync || echo ''",
+		"prepare": "cp commands.md static/commands.md 2>/dev/null || true; svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"format": "prettier --write .",
@@ -45,6 +45,7 @@
 		"@tauri-apps/api": "^1.6.0",
 		"clsx": "^2.1.1",
 		"lucide-svelte": "^0.577.0",
+		"marked": "^17.0.4",
 		"tailwind-merge": "^3.5.0",
 		"tailwindcss": "^4.2.1"
 	}

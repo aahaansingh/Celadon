@@ -16,16 +16,19 @@
 		onTagClick?: (id: number, name: string) => void;
 	}>();
 
-	const typeColors: Record<string, string> = {
-		News: 'bg-blue-100 text-blue-900 dark:bg-blue-900/30 dark:text-blue-300',
-		Article: 'bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-300',
-		Essay: 'bg-purple-200 text-purple-900 dark:bg-purple-900/30 dark:text-purple-300'
+	// Use fixed class names so Tailwind doesn't purge them (dynamic class strings are not detected)
+	const typePillClass: Record<string, string> = {
+		News: 'feed-pill feed-pill-news',
+		Article: 'feed-pill feed-pill-article',
+		Essay: 'feed-pill feed-pill-essay',
+		Update: 'feed-pill feed-pill-update'
 	};
 
 	const typeLabels: Record<string, string> = {
 		News: '1D',
 		Article: '3D',
-		Essay: '1W'
+		Essay: '1W',
+		Update: '6h'
 	};
 
 	function getTimeAgo(dateStr: string) {
@@ -111,7 +114,7 @@
 		<div class="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
 			{#if feed}
 				<span
-					class={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shrink-0 leading-none flex items-center ${typeColors[feed.feed_type]}`}
+					class={`text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shrink-0 leading-none flex items-center ${typePillClass[feed.feed_type]}`}
 				>
 					{typeLabels[feed.feed_type]}
 				</span>
@@ -155,5 +158,38 @@
 	.link-icon {
 		width: 14px;
 		height: 14px;
+	}
+	/* Feed type pills: explicit colors so they are not overridden by parent text-foreground or purged as dynamic Tailwind classes */
+	.feed-pill-news {
+		background-color: #dbeafe;
+		color: #1d4ed8;
+	}
+	.feed-pill-article {
+		background-color: #fef3c7;
+		color: #b45309;
+	}
+	.feed-pill-essay {
+		background-color: #e9d5ff;
+		color: #7e22ce;
+	}
+	.feed-pill-update {
+		background-color: #ccfbf1;
+		color: #0f766e;
+	}
+	:global(.dark) .feed-pill-news {
+		background-color: rgb(30 58 138 / 0.3);
+		color: rgb(147 197 253);
+	}
+	:global(.dark) .feed-pill-article {
+		background-color: rgb(120 53 15 / 0.3);
+		color: rgb(253 224 71);
+	}
+	:global(.dark) .feed-pill-essay {
+		background-color: rgb(88 28 135 / 0.3);
+		color: rgb(216 180 254);
+	}
+	:global(.dark) .feed-pill-update {
+		background-color: rgb(19 78 74 / 0.3);
+		color: rgb(94 234 212);
 	}
 </style>
