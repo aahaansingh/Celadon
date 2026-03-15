@@ -59,7 +59,7 @@
 	<!-- Popup panel -->
 	<div
 		bind:this={popupEl}
-		class="fixed left-1/2 top-1/2 z-[201] w-[min(90vw,42rem)] max-h-[80vh] -translate-x-1/2 -translate-y-1/2 flex flex-col rounded-xl border border-border bg-celadon dark:bg-card shadow-2xl"
+		class="fixed left-1/2 top-1/2 z-[201] w-[min(90vw,42rem)] max-h-[80vh] -translate-x-1/2 -translate-y-1/2 flex flex-col rounded-xl border border-border bg-celadon dark:bg-card/80 dark:backdrop-blur-xl shadow-2xl"
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="help-title"
