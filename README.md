@@ -16,8 +16,8 @@ Bear in mind that Celadon is currently quite unstable and I plan on making some 
 - **Commands**: Navigate your articles, feeds, and superfeeds with [slash commands](commands.md).
 
 ## Images
-[Dark Mode](previews/articles_dark.png)
-[Light Mode](previews/feeds_light.png)
+![Dark Mode](previews/articles_dark.png)
+![Light Mode](previews/feeds_light.png)
 
 ## Installation
 Tauri is a cross-platform framework but it currently only has a Mac Arch64 release, which you can find [here](https://github.com/aahaansingh/Celadon/releases/tag/v0.1.0).
