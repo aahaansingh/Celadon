@@ -63,6 +63,16 @@ class NavigationStore {
         }
     }
 
+    /** Replace current view with a shallow copy so $effect re-runs and loadData() is called (same path as navigating). Use for Reload. */
+    forceRefresh() {
+        this.current = { ...this.current };
+        this.history = [
+            ...this.history.slice(0, this.currentIndex),
+            this.current,
+            ...this.history.slice(this.currentIndex + 1)
+        ];
+    }
+
     reset() {
         this.push({ type: 'All', name: 'All Articles', filter: 'Unread', offset: 0 });
     }

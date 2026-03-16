@@ -1,14 +1,23 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { HelpCircle, X } from 'lucide-svelte';
 	import { marked } from 'marked';
-	// Single source of truth: project root commands.md (no duplicate in static/)
-	import commandsMd from '../../../commands.md?raw';
 
 	let open = $state(false);
 	let content = $state('');
 	let error = $state<string | null>(null);
 
 	let popupEl = $state<HTMLDivElement>();
+
+	// Prefetch so opening the popup is instant (avoids MIME/import issues and latency)
+	let cachedHtml = $state<string | null>(null);
+	onMount(() => {
+		fetch('/commands.md')
+			.then((res) => (res.ok ? res.text() : Promise.reject(new Error(res.statusText))))
+			.then((raw) => marked.parse(raw))
+			.then((html) => { cachedHtml = typeof html === 'string' ? html : ''; })
+			.catch(() => {});
+	});
 
 	function handleEscape(e: KeyboardEvent) {
 		if (e.key === 'Escape') close();
@@ -21,16 +30,21 @@
 		}
 	});
 
-	async function loadAndShow() {
+	function loadAndShow() {
 		open = true;
 		error = null;
-		content = '';
-		try {
-			const html = await marked.parse(commandsMd);
-			content = typeof html === 'string' ? html : '';
-		} catch (e) {
-			error = e instanceof Error ? e.message : String(e);
-		}
+		content = cachedHtml ?? '';
+		if (cachedHtml !== null) return;
+		fetch('/commands.md')
+			.then((res) => (res.ok ? res.text() : Promise.reject(new Error(res.statusText))))
+			.then((raw) => marked.parse(raw))
+			.then((html) => {
+				content = typeof html === 'string' ? html : '';
+				cachedHtml = content;
+			})
+			.catch((e) => {
+				error = e instanceof Error ? e.message : String(e);
+			});
 	}
 
 	function close() {
@@ -56,10 +70,10 @@
 		onclick={close}
 	></button>
 
-	<!-- Popup panel -->
+	<!-- Popup panel: light = bg-celadon; dark = translucent via .help-panel -->
 	<div
 		bind:this={popupEl}
-		class="fixed left-1/2 top-1/2 z-[201] w-[min(90vw,42rem)] max-h-[80vh] -translate-x-1/2 -translate-y-1/2 flex flex-col rounded-xl border border-border bg-celadon dark:bg-card/80 dark:backdrop-blur-xl shadow-2xl"
+		class="help-panel fixed left-1/2 top-1/2 z-[201] w-[min(90vw,42rem)] max-h-[80vh] -translate-x-1/2 -translate-y-1/2 flex flex-col rounded-xl border border-border bg-celadon shadow-2xl"
 		role="dialog"
 		aria-modal="true"
 		aria-labelledby="help-title"
@@ -86,6 +100,12 @@
 {/if}
 
 <style>
+	/* Dark mode only: translucent panel (light mode unchanged) */
+	:global(.dark) .help-panel {
+		background-color: color-mix(in srgb, var(--background) 88%, transparent);
+		backdrop-filter: blur(20px);
+	}
+
 	.help-content :global(h1) {
 		font-family: var(--font-heading);
 		font-weight: 700;

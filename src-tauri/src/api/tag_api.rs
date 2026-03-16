@@ -4,7 +4,10 @@ use crate::models::tag::Entity as Tag;
 use crate::models::tag_article::Entity as TagArticle;
 use crate::models::{article, tag, tag_article};
 use sea_orm::entity::prelude::*;
-use sea_orm::{ConnectionTrait, DeleteResult, InsertResult, JoinType, QueryFilter, QueryOrder, QuerySelect, Set};
+use sea_orm::{
+    ConnectionTrait, DeleteResult, InsertResult, JoinType, QueryFilter, QueryOrder, QuerySelect,
+    Set,
+};
 
 pub async fn get_tag(db: &DbConn, id: i32) -> Result<tag::Model, DbErr> {
     let retrieved_tag = Tag::find_by_id(id)

@@ -35,7 +35,9 @@ pub enum FetchResult {
 /// Error from feed fetch (rate limit, HTTP error, or network).
 #[derive(Debug)]
 pub enum FetchError {
-    RateLimited { retry_after: Option<DateTime<Utc>> },
+    RateLimited {
+        retry_after: Option<DateTime<Utc>>,
+    },
     Http {
         code: u16,
         retry_after: Option<DateTime<Utc>>, // for 4xx/5xx, optional Retry-After
@@ -146,10 +148,7 @@ pub async fn fetch_feed_bytes(
                 .get("Retry-After")
                 .and_then(|v| v.to_str().ok())
                 .and_then(parse_retry_after);
-            Err(FetchError::Http {
-                code,
-                retry_after,
-            })
+            Err(FetchError::Http { code, retry_after })
         }
         _ => Err(FetchError::Http {
             code: status.as_u16(),
@@ -207,7 +206,9 @@ fn bytes_to_syndication_feed(body: &[u8]) -> Result<SyndicationFeed, Box<dyn std
 
 // Legacy: fetch URL with no conditional headers and parse. Used only when we need to fetch without a feed model (e.g. callers that don't have etag/last_modified).
 pub async fn url_to_obj(url: &str) -> Result<SyndicationFeed, Box<dyn std::error::Error>> {
-    let result = fetch_feed_bytes(url, None, None).await.map_err(Box::<dyn std::error::Error>::from)?;
+    let result = fetch_feed_bytes(url, None, None)
+        .await
+        .map_err(Box::<dyn std::error::Error>::from)?;
     match result {
         FetchResult::Full(body, _, _, _) => bytes_to_syndication_feed(&body),
         FetchResult::NotModified => Err("Server returned 304 Not Modified".into()),
@@ -224,14 +225,20 @@ pub async fn url_to_feed(
     match matching_feeds {
         None => {
             // New feed: fetch without conditionals; reject on 304/429/4xx/5xx or non-XML
-            let result = fetch_feed_bytes(&url, None, None).await.map_err(Box::<dyn std::error::Error>::from)?;
+            let result = fetch_feed_bytes(&url, None, None)
+                .await
+                .map_err(Box::<dyn std::error::Error>::from)?;
             match result {
                 FetchResult::Full(body, etag, last_modified, final_url) => {
                     let feed_url = final_url.unwrap_or(url);
                     let feed_obj = bytes_to_syndication_feed(&body)?;
                     new_feed(db, feed_obj, feed_url.clone(), superfeed_id, feed_type).await?;
-                    let feed_id = feed_api::get_feed_by_url(db, feed_url).await?.expect("just created").id;
-                    feed_api::update_feed_conditional_headers(db, feed_id, etag, last_modified).await?;
+                    let feed_id = feed_api::get_feed_by_url(db, feed_url)
+                        .await?
+                        .expect("just created")
+                        .id;
+                    feed_api::update_feed_conditional_headers(db, feed_id, etag, last_modified)
+                        .await?;
                     feed_api::update_feed_next_poll_after(
                         db,
                         feed_id,
@@ -255,13 +262,25 @@ pub async fn url_to_feed(
                     if let Some(ref final_u) = final_url {
                         if final_u != &url {
                             // Redirect: check if another feed already has this URL before we update
-                            if let Ok(Some(existing)) = feed_api::get_feed_by_url(db, final_u.clone()).await {
+                            if let Ok(Some(existing)) =
+                                feed_api::get_feed_by_url(db, final_u.clone()).await
+                            {
                                 if existing.id != matched_feed.id {
                                     // Redirect target is another feed; mark this feed dead
-                                    feed_api::update_feed_consecutive_http_errors(db, matched_feed.id, 3).await?;
-                                    let far_future = Utc::now() + chrono::TimeDelta::days(FAR_FUTURE_DAYS);
-                                    feed_api::update_feed_next_poll_after(db, matched_feed.id, Some(far_future))
-                                        .await?;
+                                    feed_api::update_feed_consecutive_http_errors(
+                                        db,
+                                        matched_feed.id,
+                                        3,
+                                    )
+                                    .await?;
+                                    let far_future =
+                                        Utc::now() + chrono::TimeDelta::days(FAR_FUTURE_DAYS);
+                                    feed_api::update_feed_next_poll_after(
+                                        db,
+                                        matched_feed.id,
+                                        Some(far_future),
+                                    )
+                                    .await?;
                                     return Ok(());
                                 }
                             }
@@ -308,8 +327,8 @@ pub async fn url_to_feed(
                 }
                 Err(FetchError::RateLimited { retry_after }) => {
                     feed_api::update_feed_status(db, matched_feed.id, 1).await?;
-                    let until = retry_after
-                        .unwrap_or_else(|| Utc::now() + chrono::TimeDelta::hours(1));
+                    let until =
+                        retry_after.unwrap_or_else(|| Utc::now() + chrono::TimeDelta::hours(1));
                     let until = until + chrono::TimeDelta::seconds(EXTRA_DELAY_429_SECS);
                     feed_api::update_feed_next_poll_after(db, matched_feed.id, Some(until)).await?;
                     Err(FetchError::RateLimited { retry_after }.into())
@@ -319,29 +338,33 @@ pub async fn url_to_feed(
                     let n = feed.consecutive_http_errors;
                     let now = Utc::now();
                     if n == 0 {
-                        let next = retry_after
-                            .unwrap_or_else(|| now + chrono::TimeDelta::days(1));
+                        let next = retry_after.unwrap_or_else(|| now + chrono::TimeDelta::days(1));
                         feed_api::update_feed_status(db, matched_feed.id, code as i32).await?;
-                        feed_api::update_feed_next_poll_after(db, matched_feed.id, Some(next)).await?;
-                        feed_api::update_feed_consecutive_http_errors(db, matched_feed.id, 1).await?;
+                        feed_api::update_feed_next_poll_after(db, matched_feed.id, Some(next))
+                            .await?;
+                        feed_api::update_feed_consecutive_http_errors(db, matched_feed.id, 1)
+                            .await?;
                     } else if n == 1 {
                         let next = now + chrono::TimeDelta::days(7);
                         feed_api::update_feed_status(db, matched_feed.id, code as i32).await?;
-                        feed_api::update_feed_next_poll_after(db, matched_feed.id, Some(next)).await?;
-                        feed_api::update_feed_consecutive_http_errors(db, matched_feed.id, 2).await?;
+                        feed_api::update_feed_next_poll_after(db, matched_feed.id, Some(next))
+                            .await?;
+                        feed_api::update_feed_consecutive_http_errors(db, matched_feed.id, 2)
+                            .await?;
                     } else {
                         // Third failure: mark dead, stop polling; keep status as most recent error code
                         feed_api::update_feed_status(db, matched_feed.id, code as i32).await?;
-                        feed_api::update_feed_consecutive_http_errors(db, matched_feed.id, 3).await?;
-                        let far_future = now + chrono::TimeDelta::days(FAR_FUTURE_DAYS);
-                        feed_api::update_feed_next_poll_after(db, matched_feed.id, Some(far_future))
+                        feed_api::update_feed_consecutive_http_errors(db, matched_feed.id, 3)
                             .await?;
+                        let far_future = now + chrono::TimeDelta::days(FAR_FUTURE_DAYS);
+                        feed_api::update_feed_next_poll_after(
+                            db,
+                            matched_feed.id,
+                            Some(far_future),
+                        )
+                        .await?;
                     }
-                    Err(FetchError::Http {
-                        code,
-                        retry_after,
-                    }
-                    .into())
+                    Err(FetchError::Http { code, retry_after }.into())
                 }
                 Err(FetchError::Network(e)) => Err(FetchError::Network(e).into()),
             }
@@ -408,7 +431,10 @@ pub async fn new_feed(
                 db,
                 feed_id,
                 url,
-                json_feed.title.clone().unwrap_or_else(|| "Untitled".to_owned()),
+                json_feed
+                    .title
+                    .clone()
+                    .unwrap_or_else(|| "Untitled".to_owned()),
                 "".to_owned(),
                 Utc::now(),
                 Utc::now(),
@@ -481,7 +507,10 @@ pub async fn new_feed(
             }
         }
         SyndicationFeed::Json(ref json_feed) => {
-            let feed_title = json_feed.title.clone().unwrap_or_else(|| "Untitled".to_owned());
+            let feed_title = json_feed
+                .title
+                .clone()
+                .unwrap_or_else(|| "Untitled".to_owned());
             for item in json_feed.items.iter() {
                 let published = parse_json_feed_date(
                     item.date_published.as_ref().or(item.date_modified.as_ref()),
@@ -574,8 +603,8 @@ pub async fn update_feed(
                 match get_article_by_url(db, article_url.clone()).await? {
                     None => {
                         // Atom: published is optional; fall back to updated so feeds that omit published get real dates
-                        let published = unwrap_default(article.published, article.updated.clone())
-                            .to_utc();
+                        let published =
+                            unwrap_default(article.published, article.updated.clone()).to_utc();
                         let expiry_at = calculate_expiry(published, &feed_model.feed_type);
                         let already_expired = Utc::now() >= expiry_at;
                         // Substack and some Atom feeds use only <summary> or have empty <content>; fall back to summary
@@ -602,7 +631,10 @@ pub async fn update_feed(
             }
         }
         SyndicationFeed::Json(ref json_feed) => {
-            let feed_title = json_feed.title.clone().unwrap_or_else(|| "Untitled".to_owned());
+            let feed_title = json_feed
+                .title
+                .clone()
+                .unwrap_or_else(|| "Untitled".to_owned());
             for item in json_feed.items.iter() {
                 let article_url = item
                     .url
@@ -625,9 +657,7 @@ pub async fn update_feed(
                             db,
                             article_api::article_max_id(db).await? + 1,
                             article_url,
-                            item.title
-                                .clone()
-                                .unwrap_or_else(|| feed_title.clone()),
+                            item.title.clone().unwrap_or_else(|| feed_title.clone()),
                             published,
                             expiry_at,
                             already_expired,
@@ -651,17 +681,17 @@ pub async fn refresh_all_feeds(db: &DbConn) -> Result<(), DbErr> {
     const ALL_SUPERFEED_ID: i32 = 1;
     let now = Utc::now();
     for f in feeds {
-        let skip_by_time = f
-            .next_poll_after
-            .map(|t| now < t)
-            .unwrap_or(false);
+        let skip_by_time = f.next_poll_after.map(|t| now < t).unwrap_or(false);
         let skip_broken = f.consecutive_http_errors >= 3;
         if skip_by_time || skip_broken {
             continue;
         }
         if let Err(e) = url_to_feed(db, f.url.clone(), ALL_SUPERFEED_ID, f.feed_type.clone()).await
         {
-            eprintln!("refresh_all_feeds: feed id {} ({}) failed: {}", f.id, f.url, e);
+            eprintln!(
+                "refresh_all_feeds: feed id {} ({}) failed: {}",
+                f.id, f.url, e
+            );
         }
     }
     let _ = article_api::ensure_article_cap(db, article_api::ARTICLE_CAP).await;
@@ -678,18 +708,23 @@ pub async fn refresh_feeds_by_ids(db: &DbConn, feed_ids: Vec<i32>) -> Result<(),
             Ok(f) => f,
             Err(_) => continue,
         };
-        let skip_by_time = feed
-            .next_poll_after
-            .map(|t| now < t)
-            .unwrap_or(false);
+        let skip_by_time = feed.next_poll_after.map(|t| now < t).unwrap_or(false);
         let skip_broken = feed.consecutive_http_errors >= 3;
         if skip_by_time || skip_broken {
             continue;
         }
-        if let Err(e) =
-            url_to_feed(db, feed.url.clone(), ALL_SUPERFEED_ID, feed.feed_type.clone()).await
+        if let Err(e) = url_to_feed(
+            db,
+            feed.url.clone(),
+            ALL_SUPERFEED_ID,
+            feed.feed_type.clone(),
+        )
+        .await
         {
-            eprintln!("refresh_feeds_by_ids: feed id {} ({}) failed: {}", id, feed.url, e);
+            eprintln!(
+                "refresh_feeds_by_ids: feed id {} ({}) failed: {}",
+                id, feed.url, e
+            );
         }
     }
     Ok(())

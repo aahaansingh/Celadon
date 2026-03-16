@@ -85,7 +85,7 @@
 			return;
 		}
 		try {
-			const { save } = await import('@tauri-apps/api/dialog');
+			const { save } = await import('@tauri-apps/plugin-dialog');
 			const path = await save({
 				filters: [{ name: 'OPML', extensions: ['opml'] }],
 				defaultPath: 'celadon-export.opml'

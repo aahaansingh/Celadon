@@ -95,23 +95,23 @@ async fn test_substack_feed(db: &DbConn) -> Result<(), Box<dyn std::error::Error
     let superfeed_id = 1;
     let feed_url = "https://www.thebignewsletter.com/feed".to_owned();
 
-    syndicator::url_to_feed(
-        db,
-        feed_url.clone(),
-        superfeed_id,
-        feed::FeedType::Article,
-    )
-    .await?;
+    syndicator::url_to_feed(db, feed_url.clone(), superfeed_id, feed::FeedType::Article).await?;
 
     let feed_id = feed_api::feed_max_id(db).await?;
     let inserted_feed = feed_api::get_feed(db, feed_id).await?;
-    assert!(!inserted_feed.name.is_empty(), "Substack feed should have a name");
+    assert!(
+        !inserted_feed.name.is_empty(),
+        "Substack feed should have a name"
+    );
 
     let retrieved_feed = feed_api::get_feed_by_url(db, feed_url).await?.unwrap();
     assert_eq!(retrieved_feed.id, feed_id);
 
     let articles = feed_api::get_articles(db, feed_id, ReadFilter::All, None, None).await?;
-    assert!(articles.len() > 0, "Substack feed should yield at least one article");
+    assert!(
+        articles.len() > 0,
+        "Substack feed should yield at least one article"
+    );
 
     let first = &articles[0];
     assert!(

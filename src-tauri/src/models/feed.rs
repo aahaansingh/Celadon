@@ -24,8 +24,8 @@ pub struct Model {
     pub name: String,
     pub category: String,
     pub added: DateTime<Utc>,
-        pub last_fetched: DateTime<Utc>,
-        /// 0 = healthy, 1 = rate limited, 2–599 = HTTP error code
+    pub last_fetched: DateTime<Utc>,
+    /// 0 = healthy, 1 = rate limited, 2–599 = HTTP error code
     pub status: i32,
     pub feed_type: FeedType,
     #[sea_orm(default_value = false)]

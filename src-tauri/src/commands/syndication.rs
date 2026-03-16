@@ -21,5 +21,7 @@ pub async fn add_feed(
 #[tauri::command]
 pub async fn refresh_all_feeds(state: State<'_, DatabaseConnection>) -> Result<(), String> {
     let db = state.inner();
-    syndicator::refresh_all_feeds(db).await.map_err(|e| e.to_string())
+    syndicator::refresh_all_feeds(db)
+        .await
+        .map_err(|e| e.to_string())
 }

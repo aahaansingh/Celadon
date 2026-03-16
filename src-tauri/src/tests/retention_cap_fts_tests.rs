@@ -17,7 +17,8 @@ async fn test_db() -> TestDB {
 }
 
 #[async_std::test]
-async fn test_retention_deletes_old_untagged_keeps_tagged() -> Result<(), Box<dyn std::error::Error>> {
+async fn test_retention_deletes_old_untagged_keeps_tagged() -> Result<(), Box<dyn std::error::Error>>
+{
     let test_db = test_db().await;
     create_tables::create_tables(&test_db.db).await?;
     let db = &test_db.db;
@@ -83,7 +84,8 @@ async fn test_retention_deletes_old_untagged_keeps_tagged() -> Result<(), Box<dy
 }
 
 #[async_std::test]
-async fn test_ensure_article_cap_removes_oldest_untagged() -> Result<(), Box<dyn std::error::Error>> {
+async fn test_ensure_article_cap_removes_oldest_untagged() -> Result<(), Box<dyn std::error::Error>>
+{
     let test_db = test_db().await;
     create_tables::create_tables(&test_db.db).await?;
     let db = &test_db.db;
@@ -145,7 +147,8 @@ async fn test_ensure_article_cap_removes_oldest_untagged() -> Result<(), Box<dyn
 }
 
 #[async_std::test]
-async fn test_fts_search_articles_feeds_superfeeds_tags() -> Result<(), Box<dyn std::error::Error>> {
+async fn test_fts_search_articles_feeds_superfeeds_tags() -> Result<(), Box<dyn std::error::Error>>
+{
     let test_db = test_db().await;
     create_tables::create_tables(&test_db.db).await?;
     let db = &test_db.db;
@@ -182,9 +185,18 @@ async fn test_fts_search_articles_feeds_superfeeds_tags() -> Result<(), Box<dyn 
     )
     .await?;
 
-    let articles = article_api::search_articles(db, "UniqueArticleTitle".to_owned(), ReadFilter::All, Some(10), None).await?;
+    let articles = article_api::search_articles(
+        db,
+        "UniqueArticleTitle".to_owned(),
+        ReadFilter::All,
+        Some(10),
+        None,
+    )
+    .await?;
     assert!(!articles.is_empty());
-    assert!(articles.iter().any(|a| a.name.contains("UniqueArticleTitle")));
+    assert!(articles
+        .iter()
+        .any(|a| a.name.contains("UniqueArticleTitle")));
 
     let feeds = feed_api::search_feeds(db, "UniqueFeedName".to_owned()).await?;
     assert!(!feeds.is_empty());

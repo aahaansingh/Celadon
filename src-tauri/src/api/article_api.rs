@@ -1,7 +1,7 @@
 use crate::models::article::Entity as Article;
 use crate::models::article::ReadFilter;
-use crate::models::{article, tag};
 use crate::models::tag_article;
+use crate::models::{article, tag};
 use chrono::{DateTime, Utc};
 use sea_orm::entity::prelude::*;
 use sea_orm::sea_query::{Expr as SeaExpr, Query};
@@ -323,7 +323,9 @@ pub async fn search_articles(
                 1.0
             }
         };
-        sort_val(a).partial_cmp(&sort_val(b)).unwrap_or(std::cmp::Ordering::Equal)
+        sort_val(a)
+            .partial_cmp(&sort_val(b))
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
     let offset = offset.unwrap_or(0) as usize;
     let num = num.unwrap_or(50) as usize;

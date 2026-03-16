@@ -4,7 +4,9 @@ use crate::models::feed::Entity as Feed;
 use crate::models::superfeed::Entity as Superfeed;
 use crate::models::{article, feed, superfeed};
 use sea_orm::entity::prelude::*;
-use sea_orm::{ConnectionTrait, InsertResult, JoinType, Order, QueryFilter, QueryOrder, QuerySelect, Set};
+use sea_orm::{
+    ConnectionTrait, InsertResult, JoinType, Order, QueryFilter, QueryOrder, QuerySelect, Set,
+};
 
 pub async fn get_superfeed(db: &DbConn, id: i32) -> Result<superfeed::Model, DbErr> {
     let retrieved_superfeed = Superfeed::find_by_id(id)

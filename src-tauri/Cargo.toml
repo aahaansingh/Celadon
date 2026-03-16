@@ -12,12 +12,12 @@ rust-version = "1.60"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "1.5.6", features = [] }
+tauri-build = { version = "2", features = [] }
 
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-tauri = { version = "1.8.2", features = [ "dialog-save", "dialog-open", "shell-open", "window-all"] }
+tauri = { version = "2", features = [] }
 sqlx = { version = "0.7", features = ["sqlite", "runtime-tokio", "migrate"] }
 tokio = { version = "1", features = ["full"] }
 chrono = { version = "0.4.39" }
@@ -31,6 +31,8 @@ reqwest = { version = "0.11.18", default-features = false, features = ["gzip", "
 bytes = "1.0"
 atom_syndication = "0.12.7"
 opml = "1.1.6"
+tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.

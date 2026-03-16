@@ -97,6 +97,7 @@
 	let feedSuperfeedsList = $state<Superfeed[]>([]);
 	let feedSuperfeeds = $state<Record<number, { id: number; name: string }[]>>({});
 	let articleTags = $state<Record<number, TagType[]>>({});
+	let loadId = 0;
 	let settingsTarget = $state<
 		| { type: 'feed'; feed: Feed }
 		| { type: 'superfeed'; superfeed: Superfeed }
@@ -270,6 +271,7 @@
 	}
 
 	async function loadData(append = false) {
+		const myLoadId = ++loadId;
 		if (append) {
 			loadingMore = true;
 		} else {
@@ -400,6 +402,7 @@
 				endOfList = true;
 			}
 
+			if (myLoadId !== loadId) return;
 			if (append) {
 				articles = [...articles, ...newArticles];
 			} else {
@@ -415,6 +418,7 @@
 					tagMap[a.id] = t;
 				})
 			);
+			if (myLoadId !== loadId) return;
 			articleTags = append ? { ...articleTags, ...tagMap } : tagMap;
 			if (!append) {
 				await tick();
@@ -433,9 +437,11 @@
 	let lastRefreshTime = 0;
 
 	$effect(() => {
-		// Watch nav.current for changes (type, id, filter, query)
-		// but ignore offset changes to handle them with infinite scroll logic manually
-		const { type, id, filter, query } = nav.current;
+		// Track only type, id, filter, query so changing offset in loadData doesn't re-trigger
+		const type = nav.current.type;
+		const id = nav.current.id;
+		const filter = nav.current.filter;
+		const query = nav.current.query;
 		untrack(() => {
 			loadData().then(() => {
 				// Run refresh at the next view change after an hour has passed (avoids interrupting article reading)
@@ -662,7 +668,7 @@
 		onAdd={() => (isAddOpen = true)}
 		onToggleDarkMode={() => theme.toggle()}
 		darkMode={theme.darkMode}
-		onRefresh={() => loadData()}
+		onRefresh={() => nav.forceRefresh()}
 		onOpenArticle={(id) => {
 			getArticle(id)
 				.then((a) => {

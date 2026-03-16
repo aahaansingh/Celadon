@@ -1,5 +1,5 @@
-import { invoke } from '@tauri-apps/api/tauri';
-import { open as shellOpen } from '@tauri-apps/api/shell';
+import { invoke } from '@tauri-apps/api/core';
+import { open as shellOpen } from '@tauri-apps/plugin-shell';
 
 /** Open a URL in the system default browser (Tauri shell). No-op or fallback if not in Tauri. */
 export async function openInBrowser(url: string): Promise<void> {

@@ -9,7 +9,10 @@ pub async fn import_opml(state: State<'_, DatabaseConnection>, path: String) -> 
 }
 
 #[tauri::command]
-pub async fn import_opml_from_content(state: State<'_, DatabaseConnection>, xml: String) -> Result<(), String> {
+pub async fn import_opml_from_content(
+    state: State<'_, DatabaseConnection>,
+    xml: String,
+) -> Result<(), String> {
     let db = state.inner();
     opml_api::import_opml_from_xml(db, xml).await
 }

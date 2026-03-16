@@ -9,15 +9,20 @@ use sea_orm::DbConn;
 fn is_likely_reader_tag_or_stream_url(url: &str) -> bool {
     let lower = url.to_lowercase();
     // Feedly: tag and board URLs (e.g. feedly.com/v3/tags/..., feedly.com/v3/boards/...)
-    if lower.contains("feedly.com") && (lower.contains("/v3/tags") || lower.contains("/v3/boards")) {
+    if lower.contains("feedly.com") && (lower.contains("/v3/tags") || lower.contains("/v3/boards"))
+    {
         return true;
     }
     // Inoreader: stream/label/subscription API URLs (e.g. inoreader.com/reader/..., stream IDs)
-    if lower.contains("inoreader.com") && (lower.contains("/reader/") || lower.contains("/stream/") || lower.contains("/label/")) {
+    if lower.contains("inoreader.com")
+        && (lower.contains("/reader/") || lower.contains("/stream/") || lower.contains("/label/"))
+    {
         return true;
     }
     // The Old Reader: user-specific stream URLs
-    if lower.contains("theoldreader.com") && (lower.contains("/stream/") || lower.contains("/label/")) {
+    if lower.contains("theoldreader.com")
+        && (lower.contains("/stream/") || lower.contains("/label/"))
+    {
         return true;
     }
     // Netvibes, Newsblur and similar: subscription/stream URLs that are not direct feed URLs
@@ -39,7 +44,11 @@ fn outline_is_tag_or_category(outline: &Outline) -> bool {
 }
 
 /// Ensure feed is in superfeed; no-op if already linked.
-async fn ensure_feed_in_superfeed(db: &DbConn, feed_id: i32, superfeed_id: i32) -> Result<(), String> {
+async fn ensure_feed_in_superfeed(
+    db: &DbConn,
+    feed_id: i32,
+    superfeed_id: i32,
+) -> Result<(), String> {
     let ids = feed_api::get_superfeed_ids_for_feed(db, feed_id)
         .await
         .map_err(|e| e.to_string())?;
@@ -92,7 +101,10 @@ pub async fn import_opml_from_xml(db: &DbConn, xml: String) -> Result<(), String
                 continue;
             }
             let name = outline.text.clone();
-            let feed_id = match feed_api::get_feed_by_url(db, url.clone()).await.map_err(|e| e.to_string())? {
+            let feed_id = match feed_api::get_feed_by_url(db, url.clone())
+                .await
+                .map_err(|e| e.to_string())?
+            {
                 Some(existing) => existing.id,
                 None => {
                     let feed_id = feed_api::feed_max_id(db).await.unwrap_or(0) + 1;
@@ -125,11 +137,16 @@ pub async fn import_opml_from_xml(db: &DbConn, xml: String) -> Result<(), String
             for sub_outline in &outline.outlines {
                 if sub_outline.xml_url.is_some() {
                     let url = sub_outline.xml_url.clone().unwrap_or_default();
-                    if outline_is_tag_or_category(sub_outline) || is_likely_reader_tag_or_stream_url(&url) {
+                    if outline_is_tag_or_category(sub_outline)
+                        || is_likely_reader_tag_or_stream_url(&url)
+                    {
                         continue;
                     }
                     let name = sub_outline.text.clone();
-                    let feed_id = match feed_api::get_feed_by_url(db, url.clone()).await.map_err(|e| e.to_string())? {
+                    let feed_id = match feed_api::get_feed_by_url(db, url.clone())
+                        .await
+                        .map_err(|e| e.to_string())?
+                    {
                         Some(existing) => existing.id,
                         None => {
                             let feed_id = feed_api::feed_max_id(db).await.unwrap_or(0) + 1;
@@ -160,7 +177,10 @@ pub async fn import_opml_from_xml(db: &DbConn, xml: String) -> Result<(), String
     if !new_feed_ids.is_empty() {
         if let Err(e) = crate::syndication::syndicator::refresh_feeds_by_ids(db, new_feed_ids).await
         {
-            eprintln!("OPML import: failed to fetch articles for some feeds: {}", e);
+            eprintln!(
+                "OPML import: failed to fetch articles for some feeds: {}",
+                e
+            );
         }
     }
 
@@ -188,9 +208,7 @@ pub async fn export_opml_internal(db: &DbConn, path: String) -> Result<(), Strin
             title: Some("Celadon OPML Export".to_string()),
             ..Default::default()
         }),
-        body: Body {
-            outlines,
-        },
+        body: Body { outlines },
     };
 
     let xml = opml.to_string().map_err(|e| e.to_string())?;

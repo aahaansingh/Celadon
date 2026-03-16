@@ -15,9 +15,11 @@ use tauri::Manager;
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_shell::init())
         .manage(UndoStack::new())
         .setup(|app| {
-            let app_data_dir = app.path_resolver().app_data_dir().unwrap();
+            let app_data_dir = app.path().app_data_dir().unwrap();
             if !app_data_dir.exists() {
                 create_dir_all(&app_data_dir).unwrap();
             }
