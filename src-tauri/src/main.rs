@@ -109,6 +109,7 @@ fn main() {
             commands::article::get_article_tags,
             commands::article::get_all_articles,
             commands::article::search_articles,
+            commands::article::clean_expired_articles,
             // tag commands
             commands::tag::get_tag,
             commands::tag::get_all_tags,

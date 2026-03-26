@@ -270,8 +270,7 @@ pub async fn search_articles(
     if trimmed.is_empty() {
         return Ok(vec![]);
     }
-    // FTS5: build OR of quoted terms so "foo bar" matches docs containing "foo" OR "bar".
-    // Escape internal double quotes and drop terms that would be empty after escaping.
+    // Build OR of space-split terms
     let terms: Vec<String> = trimmed
         .split_whitespace()
         .map(|s| s.replace('"', "\"\""))
@@ -300,7 +299,7 @@ pub async fn search_articles(
     if ids.is_empty() {
         return Ok(vec![]);
     }
-    // Cap ids to avoid huge IN clause; we'll sort and paginate in memory
+    // Cap ids to avoid huge IN clause
     const MAX_FTS_IDS: usize = 10_000;
     if ids.len() > MAX_FTS_IDS {
         ids.truncate(MAX_FTS_IDS);

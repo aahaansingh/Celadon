@@ -160,8 +160,11 @@ export const untagArticle = (tagId: number, articleId: number) =>
 // Syndication
 export const addFeed = (url: string, feedType: string, superfeedId: number = 1) =>
     invoke<void>('add_feed', { url, superfeedId, feedType });
-/** Re-fetch all feeds and fetch new articles. Called by the hourly background; UI Refresh button should only re-read from DB (loadData). */
+/** Re-fetch all feeds and ingest new articles. Used on startup, by the hourly background, and when the user clicks the toolbar Refresh (then `loadData` reloads the current view from DB). */
 export const refreshAllFeeds = () => invoke<void>('refresh_all_feeds');
+
+/** Mark unread articles past `expiry_at` as read (matches startup maintenance). Call before reloading lists so Unread reflects expiry. */
+export const cleanExpiredArticles = () => invoke<void>('clean_expired_articles');
 
 // App settings (SQLite via Tauri)
 export interface AppSettings {

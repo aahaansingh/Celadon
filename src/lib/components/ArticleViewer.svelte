@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Article } from '$lib/api';
 	import { getArticleProxyUrl, hasTauriIpc, openInBrowser } from '$lib/api';
+	import { onInjectedHtmlLinkActivate } from '$lib/contentLinks';
 	import { decodeHtmlEntities, sanitizeHtml } from '$lib/sanitizeHtml';
 	import { X, ExternalLink, Settings } from 'lucide-svelte';
 	import { fade } from 'svelte/transition';
@@ -124,7 +125,13 @@
 		<!-- Content Area -->
 		<div class="flex-1 overflow-auto">
 			{#if mode === 'simple'}
-				<article class="max-w-3xl mx-auto px-6 py-12 prose dark:prose-invert prose-p:text-lg prose-p:leading-relaxed prose-p:text-foreground/80">
+				<!-- svelte-ignore a11y_click_events_have_key_events -->
+				<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+				<article
+					class="max-w-3xl mx-auto px-6 py-12 prose dark:prose-invert prose-p:text-lg prose-p:leading-relaxed prose-p:text-foreground/80"
+					onclick={(e) => onInjectedHtmlLinkActivate(e, article.url)}
+					onauxclick={(e) => onInjectedHtmlLinkActivate(e, article.url)}
+				>
 					{#if simpleContent}
 						{@html simpleContent}
 					{:else}
@@ -141,12 +148,14 @@
 						<iframe
 							title={decodeHtmlEntities(article.name)}
 							srcdoc={fullModeIframeSrcdoc}
+							sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals"
 							class="w-full flex-1 min-h-0 border-none"
 						></iframe>
 					{:else}
 						<iframe
 							src={fullModeIframeSrc}
 							title={decodeHtmlEntities(article.name)}
+							sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-downloads allow-modals"
 							class="w-full flex-1 min-h-0 border-none"
 						></iframe>
 					{/if}
@@ -172,5 +181,16 @@
 	/* Styling for the simple view prose */
 	article {
 		font-family: var(--font-body);
+	}
+
+	article :global(a) {
+		color: var(--primary);
+		text-decoration: underline;
+		text-decoration-thickness: 1px;
+		text-underline-offset: 3px;
+	}
+
+	article :global(a:hover) {
+		opacity: 0.88;
 	}
 </style>

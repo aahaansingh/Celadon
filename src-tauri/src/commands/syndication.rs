@@ -16,8 +16,8 @@ pub async fn add_feed(
         .map_err(|e| e.to_string())
 }
 
-/// Re-fetch all feeds from their URLs and insert new articles. Used by the hourly background task;
-/// the UI refresh button should only re-read from the DB (loadData).
+/// Re-fetch all feeds from their URLs and insert new articles. Runs `clean_expired_articles` first
+/// so unread lists stay aligned with `expiry_at` after refresh.
 #[tauri::command]
 pub async fn refresh_all_feeds(state: State<'_, DatabaseConnection>) -> Result<(), String> {
     let db = state.inner();

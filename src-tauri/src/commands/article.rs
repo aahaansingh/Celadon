@@ -125,3 +125,12 @@ pub async fn search_articles(
         .await
         .map_err(|e| e.to_string())
 }
+
+/// Mark unread articles past `expiry_at` as read (same as startup maintenance). Exposed for refresh so Unread lists update without restarting the app.
+#[tauri::command]
+pub async fn clean_expired_articles(state: State<'_, DatabaseConnection>) -> Result<(), String> {
+    let db = state.inner();
+    article_api::clean_expired_articles(db)
+        .await
+        .map_err(|e| e.to_string())
+}

@@ -291,7 +291,6 @@ pub async fn url_to_feed(
                     let feed_obj = bytes_to_syndication_feed(&body)?;
                     update_feed(db, matched_feed.id, feed_obj).await?;
                     feed_api::update_feed_status(db, matched_feed.id, 0).await?;
-                    // Compliant: poll at most once per hour (rachelbythebay et al.).
                     feed_api::update_feed_next_poll_after(
                         db,
                         matched_feed.id,
@@ -345,7 +344,7 @@ pub async fn url_to_feed(
                         feed_api::update_feed_consecutive_http_errors(db, matched_feed.id, 1)
                             .await?;
                     } else if n == 1 {
-                        let next = now + chrono::TimeDelta::days(7);
+                        let next = now + chrono::TimeDelta::days(4);
                         feed_api::update_feed_status(db, matched_feed.id, code as i32).await?;
                         feed_api::update_feed_next_poll_after(db, matched_feed.id, Some(next))
                             .await?;
@@ -677,6 +676,7 @@ pub async fn update_feed(
 /// Re-fetch all feeds from their URLs and insert any new articles. Used by the hourly background
 /// task; one failing feed does not stop the rest. Skips feeds when next_poll_after is in the future or consecutive_http_errors >= 3 (dead).
 pub async fn refresh_all_feeds(db: &DbConn) -> Result<(), DbErr> {
+    article_api::clean_expired_articles(db).await?;
     let feeds = feed_api::get_all_feeds(db).await?;
     const ALL_SUPERFEED_ID: i32 = 1;
     let now = Utc::now();

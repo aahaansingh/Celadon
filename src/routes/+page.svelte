@@ -21,6 +21,7 @@
 		addFeedToSuperfeed,
 		removeFeedFromSuperfeed,
 		refreshAllFeeds,
+		cleanExpiredArticles,
 		createSuperfeed,
 		createTag,
 		tagArticle,
@@ -443,6 +444,21 @@
 
 	let lastRefreshTime = 0;
 
+	/** Toolbar refresh: must not rely on `nav.forceRefresh()` — the article $effect only watches type/id/filter/query, so a shallow copy of `nav.current` does not re-run and `loadData` never fires. */
+	async function handleToolbarRefresh() {
+		try {
+			await cleanExpiredArticles();
+		} catch {
+			/* DB maintenance best-effort */
+		}
+		try {
+			await refreshAllFeeds();
+		} catch {
+			/* still reload from DB if syndication fails */
+		}
+		await loadData(false);
+	}
+
 	$effect(() => {
 		// Track only type, id, filter, query so changing offset in loadData doesn't re-trigger
 		const type = nav.current.type;
@@ -679,7 +695,7 @@
 <div class="min-h-screen bg-background text-foreground transition-colors duration-500">
 	<CommandBar
 		onAdd={() => (isAddOpen = true)}
-		onRefresh={() => nav.forceRefresh()}
+		onRefresh={() => void handleToolbarRefresh()}
 		onOpenAppSettings={() => (appSettingsOpen = true)}
 		onOpenArticle={(id) => {
 			getArticle(id)

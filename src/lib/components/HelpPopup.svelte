@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { HelpCircle, X } from 'lucide-svelte';
 	import { marked } from 'marked';
+	import { onInjectedHtmlLinkActivate } from '$lib/contentLinks';
 
 	let open = $state(false);
 	let content = $state('');
@@ -29,6 +30,11 @@
 			return () => window.removeEventListener('keydown', handleEscape);
 		}
 	});
+
+	function helpLinkActivate(e: MouseEvent) {
+		const base = typeof document !== 'undefined' ? document.baseURI : 'http://localhost/';
+		onInjectedHtmlLinkActivate(e, base);
+	}
 
 	function loadAndShow() {
 		open = true;
@@ -89,7 +95,13 @@
 			</button>
 			<h2 id="help-title" class="font-heading font-bold text-sm flex-1 text-center">Commands</h2>
 		</div>
-		<div class="help-content min-h-0 flex-1 overflow-y-auto p-4">
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div
+			class="help-content min-h-0 flex-1 overflow-y-auto p-4"
+			onclick={helpLinkActivate}
+			onauxclick={helpLinkActivate}
+		>
 			{#if error}
 				<p class="text-red-600 dark:text-red-400">{error}</p>
 			{:else if content}
