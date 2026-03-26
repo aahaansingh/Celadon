@@ -2,9 +2,12 @@
   "$schema": "https://schema.tauri.app/config/2",
   "build": {
     "beforeBuildCommand": "npm run build",
-    "beforeDevCommand": "npm run dev",
-    "frontendDist": "../build",
-    "devUrl": "http://localhost:5173"
+    "beforeDevCommand": {
+      "script": "npm run dev",
+      "cwd": ".."
+    },
+    "devUrl": "http://localhost:5173",
+    "frontendDist": "http://localhost:5173"
   },
   "bundle": {
     "active": true,
@@ -42,7 +45,7 @@
   },
   "productName": "Celadon",
   "mainBinaryName": "Celadon",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "identifier": "app.celadon",
   "plugins": {},
   "app": {
@@ -53,7 +56,7 @@
         "resizable": true,
         "title": "Celadon",
         "width": 800,
-        "useHttpsScheme": true
+        "useHttpsScheme": false
       }
     ],
     "security": {

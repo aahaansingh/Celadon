@@ -33,6 +33,9 @@
 		deleteTag,
 		readAllArticlesInFeed,
 		undo,
+		getAppSettings,
+		NEEDS_TAURI_DESKTOP_MESSAGE,
+		type AppSettings,
 		type Article,
 		type Feed,
 		type Superfeed,
@@ -53,6 +56,7 @@
 	import AddTagToArticleModal from '$lib/components/AddTagToArticleModal.svelte';
 	import AddFeedToSuperfeedModal from '$lib/components/AddFeedToSuperfeedModal.svelte';
 	import ConfirmDeleteModal from '$lib/components/ConfirmDeleteModal.svelte';
+	import AppSettingsModal from '$lib/components/AppSettingsModal.svelte';
 
 	let articles = $state<Article[]>([]);
 	let feeds = $state<Record<number, Feed>>({});
@@ -110,6 +114,9 @@
 		feedName: string;
 		assignedSuperfeedIds: number[];
 	} | null>(null);
+	let appSettingsOpen = $state(false);
+	/** Matches backend default (proxy on) until `getAppSettings` returns. */
+	let articleFullModeProxy = $state(true);
 
 	const PAGE_SIZE = 50;
 
@@ -478,6 +485,12 @@
 			})
 			.catch(() => {});
 
+		getAppSettings()
+			.then((s) => {
+				articleFullModeProxy = s.articleFullModeProxy;
+			})
+			.catch(() => {});
+
 		// Undo: Cmd+Z (Mac) or Ctrl+Z (Windows)
 		const handleKeydown = (e: KeyboardEvent) => {
 			if (e.key === 'z' && (e.metaKey || e.ctrlKey)) {
@@ -666,9 +679,8 @@
 <div class="min-h-screen bg-background text-foreground transition-colors duration-500">
 	<CommandBar
 		onAdd={() => (isAddOpen = true)}
-		onToggleDarkMode={() => theme.toggle()}
-		darkMode={theme.darkMode}
 		onRefresh={() => nav.forceRefresh()}
+		onOpenAppSettings={() => (appSettingsOpen = true)}
 		onOpenArticle={(id) => {
 			getArticle(id)
 				.then((a) => {
@@ -818,7 +830,15 @@
 					<p class="font-body text-lg text-red-600 dark:text-red-400 mb-2">
 						Could not load articles: {articleLoadError}
 					</p>
-					<p class="text-sm opacity-70 mb-4">Check the browser console (F12 → Console) for details.</p>
+					{#if articleLoadError === NEEDS_TAURI_DESKTOP_MESSAGE}
+						<p class="text-sm opacity-80 mb-4 max-w-md text-center">
+							Plain <code class="text-xs">npm run dev</code> only starts Vite. Use
+							<code class="text-xs">npm run dev:desktop</code> (or <code class="text-xs">npm run tauri:dev</code>) to open
+							the Tauri window with SQLite and IPC.
+						</p>
+					{:else}
+						<p class="text-sm opacity-70 mb-4">Check the browser console (F12 → Console) for details.</p>
+					{/if}
 					<button
 						onclick={() => { articleLoadError = null; loadData(); }}
 						class="px-4 py-2 bg-primary text-primary-foreground rounded-xl font-heading text-sm"
@@ -881,7 +901,21 @@
 		{/if}
 	</main>
 
-	<ArticleViewer article={selectedArticle} onClose={() => (selectedArticle = null)} />
+	<ArticleViewer
+		article={selectedArticle}
+		articleFullModeProxy={articleFullModeProxy}
+		onClose={() => (selectedArticle = null)}
+		onOpenAppSettings={() => (appSettingsOpen = true)}
+	/>
+
+	{#if appSettingsOpen}
+		<AppSettingsModal
+			onClose={() => (appSettingsOpen = false)}
+			onSaved={(s: AppSettings) => {
+				articleFullModeProxy = s.articleFullModeProxy;
+			}}
+		/>
+	{/if}
 
 	{#if contextMenu}
 		{@const cm = contextMenu}

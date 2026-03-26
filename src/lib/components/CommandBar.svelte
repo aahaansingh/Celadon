@@ -4,19 +4,17 @@
 		ChevronLeft,
 		ChevronRight,
 		Plus,
-		Moon,
-		Sun,
 		Hash,
 		Radio,
 		Layers,
 		RotateCcw,
-		Rss
+		Rss,
+		Settings
 	} from 'lucide-svelte';
 	import { nav } from '$lib/nav.svelte';
 	import { decodeHtmlEntities } from '$lib/sanitizeHtml';
 	import { clsx, type ClassValue } from 'clsx';
 	import { twMerge } from 'tailwind-merge';
-	import { theme } from '$lib/theme.svelte';
 	import {
 		searchFeeds,
 		searchSuperfeeds,
@@ -44,12 +42,12 @@
 		};
 	}
 
-	let { onAdd, onToggleDarkMode, darkMode, onRefresh, onOpenArticle } = $props<{
+	let { onAdd, onRefresh, onOpenArticle, onOpenAppSettings } = $props<{
 		onAdd: () => void;
-		onToggleDarkMode: () => void;
-		darkMode: boolean;
 		onRefresh: () => void;
 		onOpenArticle?: (id: number) => void;
+		/** Theme & Full Mode proxy (replaces the old header theme toggle). */
+		onOpenAppSettings: () => void;
 	}>();
 
 	let searchQuery = $state('');
@@ -87,61 +85,66 @@
 		const value = target.value;
 		searchQuery = value;
 
-		if (value.startsWith('\\fs:')) {
-			const q = value.slice(4);
-			const results = await searchSuperfeeds(q);
-			suggestions = results.map((s: Superfeed) => ({
-				id: s.id,
-				name: s.name,
-				type: 'superfeed' as const
-			}));
-			showSuggestions = suggestions.length > 0;
-		} else if (value.startsWith('\\sf:')) {
-			const q = value.slice(4);
-			const results = await searchFeeds(q);
-			suggestions = results.map((f: Feed) => ({ id: f.id, name: f.name, type: 'feed' as const }));
-			showSuggestions = suggestions.length > 0;
-		} else if (value.startsWith('\\f:')) {
-			const q = value.slice(3);
-			const results = await searchFeeds(q);
-			suggestions = results.map((f: Feed) => ({ id: f.id, name: f.name, type: 'feed' as const }));
-			showSuggestions = suggestions.length > 0;
-		} else if (value.startsWith('\\s:')) {
-			const q = value.slice(3);
-			const results = await searchSuperfeeds(q);
-			suggestions = results.map((s: Superfeed) => ({
-				id: s.id,
-				name: s.name,
-				type: 'superfeed' as const
-			}));
-			showSuggestions = suggestions.length > 0;
-		} else if (value.startsWith('\\t:')) {
-			const q = value.slice(3);
-			const results = await searchTags(q);
-			suggestions = results.map((t: Tag) => ({ id: t.id, name: t.name, type: 'tag' as const }));
-			showSuggestions = suggestions.length > 0;
-		} else if (value.trim() === '\\fs' || value.trim() === '\\sf') {
-			// Solo \fs / \sf: no suggestions (Enter will run parseAndExecute)
-			showSuggestions = false;
-			suggestions = [];
-		} else if (value.trim().length >= 2) {
-			// Plain search: show article suggestions as autocomplete (do not run for slash commands)
-			if (value.trim().startsWith('\\')) {
+		try {
+			if (value.startsWith('\\fs:')) {
+				const q = value.slice(4);
+				const results = await searchSuperfeeds(q);
+				suggestions = results.map((s: Superfeed) => ({
+					id: s.id,
+					name: s.name,
+					type: 'superfeed' as const
+				}));
+				showSuggestions = suggestions.length > 0;
+			} else if (value.startsWith('\\sf:')) {
+				const q = value.slice(4);
+				const results = await searchFeeds(q);
+				suggestions = results.map((f: Feed) => ({ id: f.id, name: f.name, type: 'feed' as const }));
+				showSuggestions = suggestions.length > 0;
+			} else if (value.startsWith('\\f:')) {
+				const q = value.slice(3);
+				const results = await searchFeeds(q);
+				suggestions = results.map((f: Feed) => ({ id: f.id, name: f.name, type: 'feed' as const }));
+				showSuggestions = suggestions.length > 0;
+			} else if (value.startsWith('\\s:')) {
+				const q = value.slice(3);
+				const results = await searchSuperfeeds(q);
+				suggestions = results.map((s: Superfeed) => ({
+					id: s.id,
+					name: s.name,
+					type: 'superfeed' as const
+				}));
+				showSuggestions = suggestions.length > 0;
+			} else if (value.startsWith('\\t:')) {
+				const q = value.slice(3);
+				const results = await searchTags(q);
+				suggestions = results.map((t: Tag) => ({ id: t.id, name: t.name, type: 'tag' as const }));
+				showSuggestions = suggestions.length > 0;
+			} else if (value.trim() === '\\fs' || value.trim() === '\\sf') {
+				// Solo \fs / \sf: no suggestions (Enter will run parseAndExecute)
 				showSuggestions = false;
 				suggestions = [];
-			} else {
-				try {
-					const results = await searchArticles(value.trim(), 'Unread', 5, 0);
-					suggestions = results.map((a) => ({ id: a.id, name: a.name, type: 'article' as const }));
-					showSuggestions = suggestions.length > 0;
-				} catch {
-					suggestions = [];
+			} else if (value.trim().length >= 2) {
+				// Plain search: show article suggestions as autocomplete (do not run for slash commands)
+				if (value.trim().startsWith('\\')) {
 					showSuggestions = false;
+					suggestions = [];
+				} else {
+					try {
+						const results = await searchArticles(value.trim(), 'Unread', 5, 0);
+						suggestions = results.map((a) => ({ id: a.id, name: a.name, type: 'article' as const }));
+						showSuggestions = suggestions.length > 0;
+					} catch {
+						suggestions = [];
+						showSuggestions = false;
+					}
 				}
+			} else {
+				showSuggestions = false;
+				suggestions = [];
 			}
-		} else {
-			showSuggestions = false;
+		} catch {
 			suggestions = [];
+			showSuggestions = false;
 		}
 		selectedIndex = -1;
 	}
@@ -336,11 +339,11 @@
 >
 	<div class="container mx-auto px-6 py-3 min-w-0">
 		<div class="flex items-center gap-4 min-w-[600px]">
-			<!-- Logo & Breadcrumbs (content-sized, max-w-md so path truncates; search bar fills the rest) -->
+			<!-- Logo & breadcrumbs -->
 			<div class="flex items-center gap-4 min-w-0 max-w-md shrink-0">
 				<button
 					type="button"
-					class="relative group cursor-pointer"
+					class="relative group cursor-pointer shrink-0"
 					onclick={() => nav.reset()}
 					aria-label="Home"
 				>
@@ -433,15 +436,13 @@
 				</button>
 
 				<button
-					onclick={onToggleDarkMode}
+					type="button"
+					onclick={onOpenAppSettings}
 					class="p-2 hover:bg-muted rounded-xl transition-all text-muted-foreground hover:text-foreground"
-					title="Toggle Dark Mode"
+					title="App settings"
+					aria-label="App settings"
 				>
-					{#if darkMode}
-						<Sun class="w-4 h-4" />
-					{:else}
-						<Moon class="w-4 h-4" />
-					{/if}
+					<Settings class="w-4 h-4" />
 				</button>
 
 				<button

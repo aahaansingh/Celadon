@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.1.0"
+version = "0.1.1"
 description = "A Tauri App"
 authors = ["you"]
 license = ""
@@ -17,7 +17,7 @@ tauri-build = { version = "2", features = [] }
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-tauri = { version = "2", features = [] }
+tauri = { version = "2", features = ["custom-protocol"] }
 sqlx = { version = "0.7", features = ["sqlite", "runtime-tokio", "migrate"] }
 tokio = { version = "1", features = ["full"] }
 chrono = { version = "0.4.39" }
@@ -33,6 +33,11 @@ atom_syndication = "0.12.7"
 opml = "1.1.6"
 tauri-plugin-shell = "2"
 tauri-plugin-dialog = "2"
+# default `single-thread` makes Engine !Send/!Sync; disable so it can live in Tauri state and async tasks.
+adblock = { version = "0.12.1", default-features = false, features = ["embedded-domain-resolver", "full-regex-handling"] }
+lol_html = "2.7.2"
+http = "1.4.0"
+base64 = "0.22"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem and the built-in dev server is disabled.

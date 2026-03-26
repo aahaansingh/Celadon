@@ -21,6 +21,7 @@ pub async fn create_tables(db: &DbConn) -> Result<(), DbErr> {
     create_table(db, super::article::Entity).await?;
     create_table(db, super::tag::Entity).await?;
     create_table(db, super::tag_article::Entity).await?;
+    create_table(db, super::settings::Entity).await?;
 
     // Create Article indices for performance
     db.execute(sea_orm::Statement::from_string(

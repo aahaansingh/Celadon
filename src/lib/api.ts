@@ -1,12 +1,34 @@
-import { invoke } from '@tauri-apps/api/core';
+import { invoke as tauriInvoke } from '@tauri-apps/api/core';
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
+
+/** Shown when the UI runs in a normal browser (Vite only); avoids calling into missing `__TAURI_INTERNALS__`. */
+export const NEEDS_TAURI_DESKTOP_MESSAGE =
+	'This app needs the Celadon desktop shell (Rust/SQLite). A plain browser at localhost has no backend. Run: npm run dev:desktop';
+
+/** True only when the Tauri webview has injected IPC (`isTauri()` alone is not enough — it can be wrong in some browsers). */
+export function hasTauriIpc(): boolean {
+	if (typeof window === 'undefined') return false;
+	const invokeFn = (window as unknown as { __TAURI_INTERNALS__?: { invoke?: unknown } }).__TAURI_INTERNALS__
+		?.invoke;
+	return typeof invokeFn === 'function';
+}
+
+function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+	if (!hasTauriIpc()) {
+		return Promise.reject(new Error(NEEDS_TAURI_DESKTOP_MESSAGE));
+	}
+	return tauriInvoke<T>(cmd, (args ?? {}) as never);
+}
 
 /** Open a URL in the system default browser (Tauri shell). No-op or fallback if not in Tauri. */
 export async function openInBrowser(url: string): Promise<void> {
+	if (!hasTauriIpc()) {
+		window.open(url, '_blank');
+		return;
+	}
 	try {
 		await shellOpen(url);
 	} catch {
-		// Fallback when not in Tauri (e.g. dev in browser)
 		window.open(url, '_blank');
 	}
 }
@@ -140,3 +162,22 @@ export const addFeed = (url: string, feedType: string, superfeedId: number = 1) 
     invoke<void>('add_feed', { url, superfeedId, feedType });
 /** Re-fetch all feeds and fetch new articles. Called by the hourly background; UI Refresh button should only re-read from DB (loadData). */
 export const refreshAllFeeds = () => invoke<void>('refresh_all_feeds');
+
+// App settings (SQLite via Tauri)
+export interface AppSettings {
+	theme: string;
+	articleFullModeProxy: boolean;
+}
+
+export type UpdateAppSettingsPatch = {
+	theme?: string;
+	articleFullModeProxy?: boolean;
+};
+
+export const getAppSettings = () => invoke<AppSettings>('get_app_settings');
+
+export const updateAppSettings = (patch: UpdateAppSettingsPatch) =>
+	invoke<AppSettings>('update_app_settings', { patch });
+
+export const getArticleProxyUrl = (documentUrl: string) =>
+	invoke<string>('get_article_proxy_url', { documentUrl });

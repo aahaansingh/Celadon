@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { Superfeed } from '$lib/api';
-	import { ALL_SUPERFEED_ID, importOpmlFromContent, exportOpml } from '$lib/api';
+	import { ALL_SUPERFEED_ID, hasTauriIpc, importOpmlFromContent, exportOpml } from '$lib/api';
 	import { X, Plus, Rss, Layers, Hash, FileDown, Upload } from 'lucide-svelte';
 	import { fade, scale } from 'svelte/transition';
 
@@ -24,7 +24,6 @@
 
 	const superfeedsExcludingAll = $derived(superfeeds.filter((s: Superfeed) => s.id !== ALL_SUPERFEED_ID));
 
-	const isTauri = typeof window !== 'undefined' && !!(window as { __TAURI__?: unknown }).__TAURI__;
 
 	$effect(() => {
 		if (isOpen) {
@@ -79,7 +78,7 @@
 	}
 
 	async function handleOpmlExport() {
-		if (!isTauri) {
+		if (!hasTauriIpc()) {
 			opmlStatus = 'error';
 			opmlMessage = 'OPML export is available in the desktop app.';
 			return;
@@ -205,9 +204,9 @@
 								<button
 									type="button"
 									onclick={handleOpmlExport}
-									disabled={opmlStatus === 'exporting' || !isTauri}
+									disabled={opmlStatus === 'exporting' || !hasTauriIpc()}
 									class="flex-1 py-2.5 bg-muted hover:bg-muted/80 disabled:opacity-50 rounded-xl text-sm font-body flex items-center justify-center gap-2 transition-colors"
-									title={!isTauri ? 'Export is available in the desktop app' : undefined}
+									title={!hasTauriIpc() ? 'Export is available in the desktop app' : undefined}
 								>
 									<FileDown class="w-4 h-4" />
 									Export OPML

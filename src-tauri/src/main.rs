@@ -4,6 +4,7 @@ mod api;
 mod commands;
 mod models;
 mod syndication;
+mod protocols;
 mod tests;
 mod undo;
 
@@ -19,6 +20,8 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .manage(UndoStack::new())
         .setup(|app| {
+            // App data dir is derived from `identifier` in tauri.conf.json (here: `app.celadon`), not from
+            // `com.tauri.dev`. The latter only appears for apps whose identifier is still the Tauri template default.
             let app_data_dir = app.path().app_data_dir().unwrap();
             if !app_data_dir.exists() {
                 create_dir_all(&app_data_dir).unwrap();
@@ -31,6 +34,8 @@ fn main() {
                     .await
                     .expect("database connection failed")
             });
+
+            let adblock_engine = protocols::proxy::build_filter_engine_for_app();
 
             tauri::async_runtime::block_on(async {
                 models::create_tables::create_tables(&db_conn)
@@ -70,7 +75,7 @@ fn main() {
             });
 
             app.manage(db_conn);
-
+            app.manage(adblock_engine);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -124,7 +129,27 @@ fn main() {
             commands::opml::import_opml,
             commands::opml::import_opml_from_content,
             commands::opml::export_opml,
+            // app settings
+            commands::settings::get_app_settings,
+            commands::settings::update_app_settings,
+            commands::settings::get_article_proxy_url,
         ])
+        .register_asynchronous_uri_scheme_protocol("celadon", |ctx, req, responder| {
+            let path = req.uri().path();
+            if path.starts_with("/article/") {
+                protocols::proxy::handle_article(ctx, req, responder);
+            } else if path.starts_with("/asset/") {
+                protocols::proxy::handle_asset(ctx, req, responder);
+            } else {
+                responder.respond(
+                    http::Response::builder()
+                        .status(http::StatusCode::NOT_FOUND)
+                        .header(http::header::CONTENT_TYPE, "text/plain; charset=utf-8")
+                        .body(b"not found".to_vec())
+                        .expect("infallible 404"),
+                );
+            }
+        })
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

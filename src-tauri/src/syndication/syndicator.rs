@@ -11,7 +11,7 @@ use sea_orm::DbConn;
 use sea_orm::DbErr;
 use std::time::Duration;
 
-const USER_AGENT: &str = "Celadon/0.0.1 (https://github.com/aahaansingh/Celadon)";
+const USER_AGENT: &str = "Celadon/0.1.1 (https://github.com/aahaansingh/Celadon)";
 const MAX_RETRY_AFTER_SECS: u64 = 24 * 3600; // 24 hours
 const FAR_FUTURE_DAYS: i64 = 365;
 /// Minimum interval between polls per feed (rachelbythebay and similar: "at most once per hour").
@@ -64,7 +64,7 @@ impl std::fmt::Display for FetchError {
 impl std::error::Error for FetchError {}
 
 /// Build a shared HTTP client with User-Agent and gzip support.
-fn http_client() -> Result<Client, reqwest::Error> {
+pub(crate) fn http_client() -> Result<Client, reqwest::Error> {
     Client::builder()
         .user_agent(USER_AGENT)
         .timeout(Duration::from_secs(30))
