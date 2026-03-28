@@ -10,10 +10,8 @@ use tauri::Url;
 
 use crate::syndication::syndicator::{http_client, FetchError};
 
-/// Origin for `celadon://` URLs embedded in HTML and used as the article iframe `src` (must match registered custom scheme).
 pub const CELADON_SCHEME_ORIGIN: &str = "celadon://localhost";
 
-/// Full `celadon://…/article/<token>` URL for a remote document (single source of truth with [`proxied_asset_url`]).
 pub fn build_article_proxy_url(document_url: &str) -> String {
     format!(
         "{CELADON_SCHEME_ORIGIN}/article/{}",

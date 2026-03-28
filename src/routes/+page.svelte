@@ -280,6 +280,16 @@
 
 	async function loadData(append = false) {
 		const myLoadId = ++loadId;
+		console.debug('[loadData] start', {
+			myLoadId,
+			loadId,
+			append,
+			type: nav.current.type,
+			id: nav.current.id,
+			filter: nav.current.filter,
+			query: nav.current.query,
+			offset: nav.current.offset
+		});
 		if (append) {
 			loadingMore = true;
 		} else {
@@ -390,7 +400,13 @@
 			let newArticles: Article[] = [];
 			const filter = nav.current.filter || 'Unread';
 			if (!append) {
-				nav.current.offset = 0;
+				// Reset pagination without subscribing the $effect that loads articles: assigning offset
+				// after an `await` runs outside loadData's synchronous stack and can re-trigger the effect,
+				// start a second loadData (new loadId), and cause this run to abort at myLoadId !== loadId
+				// after already clearing `articles` — leaving an empty or stale list until navigation.
+				untrack(() => {
+					nav.current.offset = 0;
+				});
 			}
 			const offset = nav.current.offset || 0;
 
@@ -410,7 +426,20 @@
 				endOfList = true;
 			}
 
-			if (myLoadId !== loadId) return;
+			console.debug('[loadData] fetched articles', {
+				myLoadId,
+				loadId,
+				count: newArticles.length,
+				idsHead: newArticles.slice(0, 8).map((a) => a.id)
+			});
+			if (myLoadId !== loadId) {
+				console.warn('[loadData] SKIPPED articles assign (stale run)', {
+					myLoadId,
+					loadId,
+					wouldHaveCount: newArticles.length
+				});
+				return;
+			}
 			if (append) {
 				articles = [...articles, ...newArticles];
 			} else {
@@ -426,8 +455,16 @@
 					tagMap[a.id] = t;
 				})
 			);
-			if (myLoadId !== loadId) return;
+			if (myLoadId !== loadId) {
+				console.warn('[loadData] SKIPPED articleTags assign (stale run)', { myLoadId, loadId });
+				return;
+			}
 			articleTags = append ? { ...articleTags, ...tagMap } : tagMap;
+			console.debug('[loadData] applied', {
+				myLoadId,
+				append,
+				articlesCount: articles.length
+			});
 			if (!append) {
 				await tick();
 				window.scrollTo(0, 0);
@@ -444,23 +481,21 @@
 
 	let lastRefreshTime = 0;
 
-	/** Toolbar refresh: must not rely on `nav.forceRefresh()` — the article $effect only watches type/id/filter/query, so a shallow copy of `nav.current` does not re-run and `loadData` never fires. */
+	/** Toolbar refresh: DB expiry cleanup + `loadData(false)`. Network syndication stays on startup and the hourly `$effect` hook. */
 	async function handleToolbarRefresh() {
+		console.debug('[toolbarRefresh] start');
 		try {
 			await cleanExpiredArticles();
-		} catch {
-			/* DB maintenance best-effort */
+		} catch (e) {
+			console.warn('[toolbarRefresh] cleanExpiredArticles failed', e);
 		}
-		try {
-			await refreshAllFeeds();
-		} catch {
-			/* still reload from DB if syndication fails */
-		}
+		console.debug('[toolbarRefresh] calling loadData(false)');
 		await loadData(false);
+		console.debug('[toolbarRefresh] done');
 	}
 
 	$effect(() => {
-		// Track only type, id, filter, query so changing offset in loadData doesn't re-trigger
+		// Track type, id, filter, query — not offset (pagination mutates without full reload)
 		const type = nav.current.type;
 		const id = nav.current.id;
 		const filter = nav.current.filter;
@@ -964,6 +999,11 @@
 					? (() => {
 							const a = cm.article;
 							return {
+								onCopyLink: a.url?.trim()
+									? () => {
+											void navigator.clipboard.writeText(a.url.trim());
+										}
+									: undefined,
 								onToggleRead: () => handleToggleRead(a),
 								onAddTag: async () => {
 									contextMenu = null;

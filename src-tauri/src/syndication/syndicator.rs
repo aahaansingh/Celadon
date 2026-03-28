@@ -552,43 +552,38 @@ pub async fn update_feed(
     let feed_model = feed_api::get_feed(db, id).await?;
     feed_api::update_feed_dt(db, id, feed_api::FeedDtFields::LastFetched, Utc::now()).await?;
     match feed {
-        SyndicationFeed::Rss(ref channel) => match channel.validate() {
-            Err(_) => {
-                feed_api::update_feed_status(db, id, 500).await?;
-                let far_future = Utc::now() + chrono::TimeDelta::days(365);
-                feed_api::update_feed_next_poll_after(db, id, Some(far_future)).await?;
-                return Ok(());
-            }
-            Ok(_) => {
-                for article in channel.items.iter() {
-                    let article_url = unwrap_default(article.link.clone(), channel.link.clone());
-                    match get_article_by_url(db, article_url.clone()).await? {
-                        None => {
-                            let published = unwrap_date(article.pub_date.clone());
-                            let expiry_at = calculate_expiry(published, &feed_model.feed_type);
-                            let already_expired = Utc::now() >= expiry_at;
-                            // Prefer content:encoded (full article HTML) over description; Substack uses content:encoded
-                            let description = article
-                                .content
-                                .clone()
-                                .filter(|s| !s.trim().is_empty())
-                                .or_else(|| article.description.clone())
-                                .unwrap_or_else(|| "No description provided.".to_owned());
-                            article_api::create_article(
-                                db,
-                                article_api::article_max_id(db).await? + 1,
-                                article_url,
-                                unwrap_default(article.title.clone(), channel.title.clone()),
-                                published,
-                                expiry_at,
-                                already_expired,
-                                description,
-                                id,
-                            )
-                            .await?;
-                        }
-                        Some(_) => {}
+        // Do not call `channel.validate()` here: `new_feed` does not validate either. Feeds like Substack
+        // often parse successfully but fail strict RSS validation, which previously dropped all updates while
+        // still resetting status/next-poll in `url_to_feed` (silent no-op).
+        SyndicationFeed::Rss(ref channel) => {
+            for article in channel.items.iter() {
+                let article_url = unwrap_default(article.link.clone(), channel.link.clone());
+                match get_article_by_url(db, article_url.clone()).await? {
+                    None => {
+                        let published = unwrap_date(article.pub_date.clone());
+                        let expiry_at = calculate_expiry(published, &feed_model.feed_type);
+                        let already_expired = Utc::now() >= expiry_at;
+                        // Prefer content:encoded (full article HTML) over description; Substack uses content:encoded
+                        let description = article
+                            .content
+                            .clone()
+                            .filter(|s| !s.trim().is_empty())
+                            .or_else(|| article.description.clone())
+                            .unwrap_or_else(|| "No description provided.".to_owned());
+                        article_api::create_article(
+                            db,
+                            article_api::article_max_id(db).await? + 1,
+                            article_url,
+                            unwrap_default(article.title.clone(), channel.title.clone()),
+                            published,
+                            expiry_at,
+                            already_expired,
+                            description,
+                            id,
+                        )
+                        .await?;
                     }
+                    Some(_) => {}
                 }
             }
         },

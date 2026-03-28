@@ -33,6 +33,7 @@
 			onAddTag: () => void;
 			onShowFeed: () => void;
 			onShowFeedCard: () => void;
+			onCopyLink?: () => void;
 			read: boolean;
 		};
 		superfeedId?: number;
@@ -61,6 +62,19 @@
 	onclick={(e) => e.stopPropagation()}
 >
 	{#if type === 'article' && articleActions}
+		{#if articleActions.onCopyLink}
+			<button
+				type="button"
+				class="w-full px-4 py-2 text-left text-sm font-body flex items-center gap-2 hover:bg-muted transition-colors"
+				onclick={() => {
+					articleActions.onCopyLink?.();
+					onClose();
+				}}
+			>
+				<Copy class="w-4 h-4 text-muted-foreground" />
+				Copy article link
+			</button>
+		{/if}
 		<button
 			type="button"
 			class="w-full px-4 py-2 text-left text-sm font-body flex items-center gap-2 hover:bg-muted transition-colors"

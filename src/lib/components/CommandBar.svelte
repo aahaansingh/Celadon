@@ -147,6 +147,22 @@
 			showSuggestions = false;
 		}
 		selectedIndex = -1;
+		if (showSuggestions && suggestions.length > 0) {
+			await tick();
+			updateDropdownRect();
+		} else {
+			dropdownRect = { top: 0, left: 0, width: 0 };
+		}
+	}
+
+	async function syncDropdownPositionFromInput() {
+		showSuggestions = suggestions.length > 0;
+		if (showSuggestions) {
+			await tick();
+			updateDropdownRect();
+		} else {
+			dropdownRect = { top: 0, left: 0, width: 0 };
+		}
 	}
 
 	function applySuggestion(suggestion: (typeof suggestions)[0]) {
@@ -404,7 +420,7 @@
 					bind:this={searchInputRef}
 					oninput={handleInput}
 					onkeydown={handleKeydown}
-					onfocus={() => (showSuggestions = suggestions.length > 0)}
+					onfocus={() => void syncDropdownPositionFromInput()}
 					onblur={() => setTimeout(() => (showSuggestions = false), 200)}
 					class="w-full pl-10 pr-4 py-2 bg-muted/20 border border-primary/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all font-body text-sm placeholder:text-muted-foreground/50"
 				/>
@@ -457,12 +473,12 @@
 	</div>
 </div>
 
-<!-- Suggestions dropdown: portaled to body so it is not clipped by header overflow -->
-{#if showSuggestions && suggestions.length > 0}
+<!-- Suggestions dropdown: portaled to body so it is not clipped by header overflow. Wait for measured rect so fixed (0,0) + animation does not flash from viewport corner. -->
+{#if showSuggestions && suggestions.length > 0 && dropdownRect.width > 0}
 	<div
 		use:portal
-		class="fixed bg-background border border-border rounded-xl shadow-2xl overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200"
-		style="top: {dropdownRect.top}px; left: {dropdownRect.left}px; width: {dropdownRect.width > 0 ? dropdownRect.width + 'px' : '12rem'}; min-width: 12rem;"
+		class="fixed bg-background border border-border rounded-xl shadow-2xl overflow-hidden z-[100]"
+		style="top: {dropdownRect.top}px; left: {dropdownRect.left}px; width: {dropdownRect.width}px; min-width: 12rem;"
 	>
 		<div
 			class="p-2 border-b border-border/50 bg-muted/30 text-[10px] uppercase tracking-wider font-bold text-muted-foreground flex justify-between items-center"
@@ -500,9 +516,3 @@
 	</div>
 {/if}
 
-<style>
-	/* Subtle animations for the dropdown */
-	:global(.animate-in) {
-		animation-fill-mode: forwards;
-	}
-</style>
