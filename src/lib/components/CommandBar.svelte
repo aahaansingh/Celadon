@@ -351,25 +351,22 @@
 </script>
 
 <div
-	class="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm overflow-x-auto"
+	class="sticky top-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-sm"
 >
 	<div class="container mx-auto px-6 py-3 min-w-0">
-		<div class="flex items-center gap-4 min-w-[600px]">
-			<!-- Logo & breadcrumbs -->
+		<div class="flex min-w-0 items-center gap-4">
+			<!-- Logo & breadcrumbs (outside overflow-x so hover glow is not rectangularly clipped) -->
 			<div class="flex items-center gap-4 min-w-0 max-w-md shrink-0">
 				<button
 					type="button"
-					class="relative group cursor-pointer shrink-0"
+					class="group relative shrink-0 cursor-pointer rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
 					onclick={() => nav.reset()}
 					aria-label="Home"
 				>
-					<div
-						class="absolute -inset-1 bg-gradient-to-tr from-primary to-celadon-light rounded-lg blur opacity-25 group-hover:opacity-50 transition duration-500"
-					></div>
 					<img
 						src="/celadon.svg"
 						alt="Celadon"
-						class="relative w-8 h-8 rounded-lg shadow-inner bg-background"
+						class="relative block h-8 w-8 rounded-lg bg-background shadow-inner transition-shadow duration-500 group-hover:shadow-[0_0_22px_6px_color-mix(in_srgb,var(--primary)_40%,transparent),inset_0_2px_4px_rgba(0,0,0,0.06)]"
 					/>
 				</button>
 
@@ -390,84 +387,88 @@
 				</nav>
 			</div>
 
-			<!-- Navigation Controls -->
-			<div class="flex gap-1 shrink-0">
-				<button
-					onclick={() => nav.back()}
-					disabled={!nav.canGoBack}
-					class="p-2 hover:bg-muted rounded-lg transition-all disabled:opacity-20"
-				>
-					<ChevronLeft class="w-4 h-4" />
-				</button>
-				<button
-					onclick={() => nav.forward()}
-					disabled={!nav.canGoForward}
-					class="p-2 hover:bg-muted rounded-lg transition-all disabled:opacity-20"
-				>
-					<ChevronRight class="w-4 h-4" />
-				</button>
-			</div>
+			<div class="min-w-0 flex-1 overflow-x-auto">
+				<div class="flex min-w-[600px] w-full items-center gap-4">
+					<!-- Navigation Controls -->
+					<div class="flex shrink-0 gap-1">
+						<button
+							onclick={() => nav.back()}
+							disabled={!nav.canGoBack}
+							class="p-2 hover:bg-muted rounded-lg transition-all disabled:opacity-20"
+						>
+							<ChevronLeft class="w-4 h-4" />
+						</button>
+						<button
+							onclick={() => nav.forward()}
+							disabled={!nav.canGoForward}
+							class="p-2 hover:bg-muted rounded-lg transition-all disabled:opacity-20"
+						>
+							<ChevronRight class="w-4 h-4" />
+						</button>
+					</div>
 
-			<!-- Unified Search & Command Bar (dynamic: grows with space, min width so it stays usable) -->
-			<div class="flex-1 relative group min-w-[12rem]">
-				<Search
-					class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors"
-				/>
-				<input
-					type="text"
-					placeholder="Search or enter command"
-					bind:value={searchQuery}
-					bind:this={searchInputRef}
-					oninput={handleInput}
-					onkeydown={handleKeydown}
-					onfocus={() => void syncDropdownPositionFromInput()}
-					onblur={() => setTimeout(() => (showSuggestions = false), 200)}
-					class="w-full pl-10 pr-4 py-2 bg-muted/20 border border-primary/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all font-body text-sm placeholder:text-muted-foreground/50"
-				/>
-			</div>
+					<!-- Unified Search & Command Bar (dynamic: grows with space, min width so it stays usable) -->
+					<div class="relative min-w-[12rem] flex-1 group">
+						<Search
+							class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors"
+						/>
+						<input
+							type="text"
+							placeholder="Search or enter command"
+							bind:value={searchQuery}
+							bind:this={searchInputRef}
+							oninput={handleInput}
+							onkeydown={handleKeydown}
+							onfocus={() => void syncDropdownPositionFromInput()}
+							onblur={() => setTimeout(() => (showSuggestions = false), 200)}
+							class="w-full pl-10 pr-4 py-2 bg-muted/20 border border-primary/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all font-body text-sm placeholder:text-muted-foreground/50"
+						/>
+					</div>
 
-			<!-- Actions -->
-			<div class="flex items-center gap-3 shrink-0">
-				<button
-					onclick={() => nav.push({ type: 'FeedsList', name: 'Feeds' })}
-					class="p-2 hover:bg-muted rounded-xl transition-all text-muted-foreground hover:text-primary"
-					title="Feeds"
-				>
-					<Rss class="w-5 h-5" />
-				</button>
-				<button
-					onclick={() => nav.push({ type: 'SuperfeedsList', name: 'All Superfeeds' })}
-					class="p-2 hover:bg-muted rounded-xl transition-all text-muted-foreground hover:text-primary"
-					title="All Superfeeds"
-				>
-					<Layers class="w-5 h-5" />
-				</button>
+					<!-- Actions -->
+					<div class="flex shrink-0 items-center gap-3">
+						<button
+							onclick={() => nav.push({ type: 'FeedsList', name: 'Feeds' })}
+							class="p-2 hover:bg-muted rounded-xl transition-all text-muted-foreground hover:text-primary"
+							title="Feeds"
+						>
+							<Rss class="w-5 h-5" />
+						</button>
+						<button
+							onclick={() => nav.push({ type: 'SuperfeedsList', name: 'All Superfeeds' })}
+							class="p-2 hover:bg-muted rounded-xl transition-all text-muted-foreground hover:text-primary"
+							title="All Superfeeds"
+						>
+							<Layers class="w-5 h-5" />
+						</button>
 
-				<button
-					onclick={onRefresh}
-					class="p-2 hover:bg-muted rounded-xl transition-all text-muted-foreground hover:text-foreground"
-					title="Refresh"
-				>
-					<RotateCcw class="w-4 h-4" />
-				</button>
+						<button
+							onclick={onRefresh}
+							class="p-2 hover:bg-muted rounded-xl transition-all text-muted-foreground hover:text-foreground"
+							title="Refresh"
+						>
+							<RotateCcw class="w-4 h-4" />
+						</button>
 
-				<button
-					type="button"
-					onclick={onOpenAppSettings}
-					class="p-2 hover:bg-muted rounded-xl transition-all text-muted-foreground hover:text-foreground"
-					title="App settings"
-					aria-label="App settings"
-				>
-					<Settings class="w-4 h-4" />
-				</button>
+						<button
+							type="button"
+							onclick={onOpenAppSettings}
+							class="p-2 hover:bg-muted rounded-xl transition-all text-muted-foreground hover:text-foreground"
+							title="App settings"
+							aria-label="App settings"
+						>
+							<Settings class="w-4 h-4" />
+						</button>
 
-				<button
-					onclick={onAdd}
-					class="bg-primary hover:bg-celadon-dark text-white px-5 py-2 rounded-xl flex items-center gap-2 font-heading text-sm shadow-lg shadow-primary/20 active:scale-95 transition-all"
-				>
-					<Plus class="w-4 h-4" />
-					<span>Add</span>
-				</button>
+						<button
+							onclick={onAdd}
+							class="bg-primary hover:bg-celadon-dark text-white px-5 py-2 rounded-xl flex items-center gap-2 font-heading text-sm shadow-lg shadow-primary/20 active:scale-95 transition-all"
+						>
+							<Plus class="w-4 h-4" />
+							<span>Add</span>
+						</button>
+					</div>
+				</div>
 			</div>
 		</div>
 	</div>

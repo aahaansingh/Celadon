@@ -160,7 +160,7 @@ export const untagArticle = (tagId: number, articleId: number) =>
 // Syndication
 export const addFeed = (url: string, feedType: string, superfeedId: number = 1) =>
     invoke<void>('add_feed', { url, superfeedId, feedType });
-/** Re-fetch all feeds and ingest new articles (runs `clean_expired_articles` first on the backend). Used on startup and the hourly post-`loadData` hook — not the toolbar Refresh button. */
+/** Re-fetch all feeds and ingest new articles (runs `clean_expired_articles` first on the backend). Background poller calls this only — it updates SQLite; the UI is not refetched until nav change or toolbar refresh. */
 export const refreshAllFeeds = () => invoke<void>('refresh_all_feeds');
 
 /** Mark unread articles past `expiry_at` as read (matches startup maintenance). Call before reloading lists so Unread reflects expiry. */

@@ -120,6 +120,26 @@
 	let articleFullModeProxy = $state(true);
 
 	const PAGE_SIZE = 50;
+	/** Interval for background `refreshAllFeeds` (backend skips feeds until `next_poll_after`). */
+	const SYNDICATION_INTERVAL_MS = 60_000;
+
+	/** When false, nav `loadData` is skipped so the first load runs only after initial `refreshAllFeeds` finishes. */
+	let initialSyndicationComplete = $state(false);
+
+	let syndicationInFlight = false;
+
+	/** Network ingest only; does not touch list state. UI reloads from DB on nav, toolbar refresh, or after local mutations. */
+	async function runBackgroundSyndication() {
+		if (syndicationInFlight) return;
+		syndicationInFlight = true;
+		try {
+			await refreshAllFeeds();
+		} catch (e) {
+			console.warn('Background syndication failed', e);
+		} finally {
+			syndicationInFlight = false;
+		}
+	}
 
 	/** Refetch only the current view's article list + articleTags (no global lists). No-op for non-article views. */
 	async function refetchCurrentViewArticlesOnly() {
@@ -479,9 +499,7 @@
 		}
 	}
 
-	let lastRefreshTime = 0;
-
-	/** Toolbar refresh: DB expiry cleanup + `loadData(false)`. Network syndication stays on startup and the hourly `$effect` hook. */
+	/** Toolbar refresh: DB expiry cleanup + `loadData(false)` only. Feed HTTP is the background poller + its initial run in `onMount`. */
 	async function handleToolbarRefresh() {
 		console.debug('[toolbarRefresh] start');
 		try {
@@ -500,17 +518,10 @@
 		const id = nav.current.id;
 		const filter = nav.current.filter;
 		const query = nav.current.query;
+		const ready = initialSyndicationComplete;
+		if (!ready) return;
 		untrack(() => {
-			loadData().then(() => {
-				// Run refresh at the next view change after an hour has passed (avoids interrupting article reading)
-				const oneHourMs = 60 * 60 * 1000;
-				if (lastRefreshTime > 0 && Date.now() - lastRefreshTime >= oneHourMs) {
-					lastRefreshTime = Date.now();
-					refreshAllFeeds()
-						.then(() => refetchCurrentViewArticlesOnly())
-						.catch(() => {});
-				}
-			});
+			void loadData();
 		});
 	});
 
@@ -528,13 +539,17 @@
 			{ threshold: 0.1 }
 		);
 
-		// Once at startup: refresh due feeds so new articles appear
-		refreshAllFeeds()
-			.then(() => refetchCurrentViewArticlesOnly())
-			.then(() => {
-				lastRefreshTime = Date.now();
-			})
-			.catch(() => {});
+		let syndicationIntervalId: ReturnType<typeof setInterval> | undefined;
+		void (async () => {
+			try {
+				await runBackgroundSyndication();
+			} finally {
+				initialSyndicationComplete = true;
+			}
+			syndicationIntervalId = setInterval(() => {
+				void runBackgroundSyndication();
+			}, SYNDICATION_INTERVAL_MS);
+		})();
 
 		getAppSettings()
 			.then((s) => {
@@ -554,6 +569,7 @@
 		document.addEventListener('keydown', handleKeydown);
 
 		return () => {
+			if (syndicationIntervalId !== undefined) clearInterval(syndicationIntervalId);
 			observer.disconnect();
 			document.removeEventListener('keydown', handleKeydown);
 		};

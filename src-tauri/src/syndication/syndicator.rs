@@ -215,6 +215,16 @@ pub async fn url_to_obj(url: &str) -> Result<SyndicationFeed, Box<dyn std::error
     }
 }
 
+/// After errors that do not set a longer backoff (429, HTTP ladder), wait at least `MIN_POLL_INTERVAL_HOURS` before polling again.
+async fn set_next_poll_default_interval(db: &DbConn, feed_id: i32) {
+    let _ = feed_api::update_feed_next_poll_after(
+        db,
+        feed_id,
+        Some(Utc::now() + chrono::TimeDelta::hours(MIN_POLL_INTERVAL_HOURS)),
+    )
+    .await;
+}
+
 pub async fn url_to_feed(
     db: &DbConn,
     url: String,
@@ -288,8 +298,21 @@ pub async fn url_to_feed(
                         }
                     }
                     feed_api::update_feed_consecutive_http_errors(db, matched_feed.id, 0).await?;
-                    let feed_obj = bytes_to_syndication_feed(&body)?;
-                    update_feed(db, matched_feed.id, feed_obj).await?;
+                    // Map parse errors to `String` before any `.await` so the future stays `Send` for Tauri.
+                    let feed_obj = match bytes_to_syndication_feed(&body).map_err(|e| e.to_string()) {
+                        Ok(obj) => obj,
+                        Err(msg) => {
+                            set_next_poll_default_interval(db, matched_feed.id).await;
+                            return Err(std::io::Error::new(std::io::ErrorKind::Other, msg).into());
+                        }
+                    };
+                    let updated = update_feed(db, matched_feed.id, feed_obj)
+                        .await
+                        .map_err(|e| e.to_string());
+                    if let Err(msg) = updated {
+                        set_next_poll_default_interval(db, matched_feed.id).await;
+                        return Err(std::io::Error::new(std::io::ErrorKind::Other, msg).into());
+                    }
                     feed_api::update_feed_status(db, matched_feed.id, 0).await?;
                     feed_api::update_feed_next_poll_after(
                         db,
@@ -365,7 +388,10 @@ pub async fn url_to_feed(
                     }
                     Err(FetchError::Http { code, retry_after }.into())
                 }
-                Err(FetchError::Network(e)) => Err(FetchError::Network(e).into()),
+                Err(FetchError::Network(e)) => {
+                    set_next_poll_default_interval(db, matched_feed.id).await;
+                    Err(FetchError::Network(e).into())
+                }
             }
         }
     }
