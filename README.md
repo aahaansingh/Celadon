@@ -20,5 +20,5 @@ Bear in mind that Celadon is currently quite unstable and I plan on making some 
 ![Light Mode](previews/feeds_light.png)
 
 ## Installation
-Tauri is a cross-platform framework but it currently only has a Mac Arch64 release, which you can find [here](https://github.com/aahaansingh/Celadon/releases/tag/v0.1.0).
-If you have a different machine or are having trouble installing the binary, you can download this repository and [build from source](https://v1.tauri.app/v1/guides/building/).
+Tauri is a cross-platform framework but it currently only has a Mac AArch64 release, which you can find [here](https://github.com/aahaansingh/Celadon/releases).
+If you have a different sort of machine or are having trouble installing the binary, you can download this repository and [build from source](https://v1.tauri.app/v1/guides/building/).
