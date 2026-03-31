@@ -7,7 +7,7 @@
       "cwd": ".."
     },
     "devUrl": "http://localhost:5173",
-    "frontendDist": "http://localhost:5173"
+    "frontendDist": "../build"
   },
   "bundle": {
     "active": true,
